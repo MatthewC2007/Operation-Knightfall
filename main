@@ -1,0 +1,6 @@
+import customtkinter as ctk
+import keyboard
+
+# Create a window
+
+window = ctk.CTk()
