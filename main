@@ -1,6 +1,68 @@
-import customtkinter as ctk
-import keyboard
+import json
+from kivy.uix.widget import Widget
+from kivy.app import App
+from kivy.uix.behaviors import DragBehavior
+from kivy.lang import Builder
 
-# Create a window
+# KV language definition
+kv = '''
+<DraggableRectangle@DragBehavior+Widget>:
+    drag_timeout: 10000000
+    drag_distance: 0
+    drag_rectangle: self.x, self.y, self.width, self.height
 
-window = ctk.CTk()
+    canvas:
+        Color:
+            rgba: 1, 0, 0, 1  # Red color
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+FloatLayout:
+    DraggableRectangle:
+        size_hint: 0.25, 0.2
+        # No pos_hint here; position will be set manually in Python
+'''
+
+class TestApp(App):
+    def build(self):
+        # Load the KV string and get the root widget
+        root = Builder.load_string(kv)
+
+        # Load the saved position from a file
+        position = self.load_position()
+
+        # Access the DraggableRectangle and set its position
+        draggable = root.children[0]  # Get the DraggableRectangle
+        if position:
+            draggable.pos = position  # Set the saved position
+        else:
+            # Set the position to center it manually if no saved position exists
+            draggable.pos = (
+                (root.width - draggable.width) / 2,
+                (root.height - draggable.height) / 2
+            )
+
+        # Bind the position to save it when the rectangle is moved
+        draggable.bind(pos=lambda instance,
+                        value: self.save_position(instance.pos))
+
+        return root
+
+    def save_position(self, position):
+        """Save the rectangle's position to a file."""
+        with open("position.json", "w") as f:
+            json.dump({"x": position[0], "y": position[1]}, f)
+
+    def load_position(self):
+        """Load the rectangle's position from a file."""
+        try:
+            with open("position.json", "r") as f:
+                data = json.load(f)
+                return (data["x"], data["y"])
+        except (FileNotFoundError, KeyError, json.JSONDecodeError):
+            return None
+
+
+if __name__ == '__main__':
+    TestApp().run()
