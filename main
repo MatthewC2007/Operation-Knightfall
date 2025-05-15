@@ -3,7 +3,7 @@ from kivy.uix.widget import Widget
 from kivy.app import App
 from kivy.uix.behaviors import DragBehavior
 from kivy.lang import Builder
-
+from kivy.uix.floatlayout import FloatLayout
 # KV language definition
 kv = '''
 <DraggableRectangle@DragBehavior+Widget>:
@@ -22,9 +22,19 @@ FloatLayout:
     DraggableRectangle:
         size_hint: 0.25, 0.2
         # No pos_hint here; position will be set manually in Python
-'''
 
-class TestApp(App):
+<GridLayout>:
+    cols: 1
+
+    Button:
+        text: 'Create Note'
+        size_hint_y: None
+        height: 50
+        Color:
+            rgba: 0, 1, 1, 0  # Green color
+       
+'''
+class main(App):
     def build(self):
         # Load the KV string and get the root widget
         root = Builder.load_string(kv)
@@ -46,6 +56,8 @@ class TestApp(App):
         # Bind the position to save it when the rectangle is moved
         draggable.bind(pos=lambda instance,
                         value: self.save_position(instance.pos))
+        
+        
 
         return root
 
@@ -63,6 +75,5 @@ class TestApp(App):
         except (FileNotFoundError, KeyError, json.JSONDecodeError):
             return None
 
-
 if __name__ == '__main__':
-    TestApp().run()
+    main().run()
