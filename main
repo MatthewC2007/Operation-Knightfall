@@ -4,6 +4,7 @@ from kivy.app import App
 from kivy.uix.behaviors import DragBehavior
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.core.window import Window
 
 # KV language definition
 kv = '''
@@ -11,14 +12,12 @@ kv = '''
     drag_timeout: 10000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
-
     canvas:
         Color:
-            rgba: 1, 0, 0, 1  # Red color
+            rgba: 1, 1, 0.5, 1  # Red color
         Rectangle:
             pos: self.pos
             size: self.size
-
 <WelcomeScreen>:
     FloatLayout:
         Label:
@@ -32,24 +31,42 @@ kv = '''
             pos_hint: {"center_x": 0.5, "center_y": 0.4}
             border: 10,10,10,10
             on_release: app.switch_to_main_screen()
-
 <MainScreen>:
     FloatLayout:
-        DraggableRectangle:
-            id: rect1
-            size_hint: 0.1, 0.1
         Button:
             text: 'Quit'
-            size_hint: 0.2, 0.1
+            font_size: 10
+            size_hint: 0.06, 0.05
             pos_hint: {"x": 0.79, "y": 0.05}
             border: 10,10,10,10
             on_release: app.stop()
         Button:
             text: 'New Rectangle'
-            size_hint: 0.2, 0.1
+            font_size: 10
+            size_hint: 0.06, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
             border: 10,10,10,10
             on_release: app.add_new_rectangle()
+        Button:
+            text: 'Settings'
+            font_size: 10
+            size_hint: 0.06, 0.05
+            pos_hint: {"x": 0.5, "y": 0.05}
+            border: 10,10,10,10
+            on_release: app.switch_to_settings()
+<Settings>:
+    FloatLayout:
+        Label:
+            text: "Settings"
+            font_size: 32
+            size_hint: 0.6, 0.2
+            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+        Button:
+            text: "Back to Main"
+            size_hint: 0.2, 0.1
+            pos_hint: {"x": 0.79, "y": 0.05}
+            border: 10,10,10,10
+            on_release: app.switch_to_main_screen()            
 '''
 
 class WelcomeScreen(Screen):
@@ -58,73 +75,108 @@ class WelcomeScreen(Screen):
 class MainScreen(Screen):
     pass
 
-class DraggableRectangle(DragBehavior, Widget):
+class Settings(Screen):
     pass
+
+class DraggableRectangle(DragBehavior, Widget):
+    def on_touch_move(self, touch):
+        """Override to restrict movement within window boundaries."""
+        if self.collide_point(*touch.pos):
+            new_x = self.x + touch.dx
+            new_y = self.y + touch.dy
+            # Check boundaries
+            if new_x < 0:
+                new_x = 0
+            if new_y < 0:
+                new_y = 0
+            if new_x + self.width > Window.width:
+                new_x = Window.width - self.width
+            if new_y + self.height > Window.height:
+                new_y = Window.height - self.height
+
+            # Update position
+            self.pos = (new_x, new_y)
+            return True
+        return super().on_touch_move(touch)
 
 class MainApp(App):
     def build(self):
-        # Load the KV string
-        Builder.load_string(kv)
+        # Initialize the rectangles dictionary
+        self.rectangles = {}
 
         # Create the ScreenManager and add screens
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
+        self.sm.add_widget(Settings(name="setting"))
 
-        # Set the initial screen to "welcome"
+        # Load saved positions after initializing the ScreenManager
+        self.load_all_position()
+
+        # Set the initial screen
         self.sm.current = "welcome"
-
-        # Load the saved position for the rectangle
-        self.position = self.load_position()
-
         return self.sm
 
     def switch_to_main_screen(self):
         """Switch to the main screen."""
         self.sm.current = "main"
 
-        # Access the DraggableRectangle and set its position
-        main_screen = self.sm.get_screen("main")
-        draggable = main_screen.ids.rect1
-        if self.position:
-            draggable.pos = self.position  # Set the saved position
-        else:
-            # Set the position to center it manually if no saved position exists
-            draggable.pos = (
-                (main_screen.width - draggable.width) / 2,
-                (main_screen.height - draggable.height) / 2
-            )
-
-        # Bind the position to save it when the rectangle is moved
-        draggable.bind(pos=lambda instance, value: self.save_position(instance.pos))
+    def switch_to_settings(self):
+        """Switch to the settings screen."""
+        self.sm.current = "setting"
 
     def add_new_rectangle(self):
         """Add a new draggable rectangle to the main screen."""
         main_screen = self.sm.get_screen("main")
+
+        # Ensure the MainScreen has a FloatLayout
+        if not main_screen.children:
+            raise ValueError("MainScreen does not have a FloatLayout!")
+
         layout = main_screen.children[0]  # Access the FloatLayout
 
         # Create a new DraggableRectangle
         new_rectangle = DraggableRectangle()
-        new_rectangle.size_hint = (0.2, 0.2)
+        new_rectangle.size_hint = (0.1, 0.2)
         new_rectangle.pos = (100, 100)  # Set an initial position
+
+        # Generate a unique ID for the rectangle
+        rect_id = f"rect{len(self.rectangles) + 1}"
+        self.rectangles[rect_id] = {"x": 100, "y": 100}  # Add to the dictionary
+
+        # Bind the rectangle's position to update the dictionary and save
+        new_rectangle.bind(pos=lambda instance, value: self.update_rectangle_position(rect_id, instance.pos))
 
         # Add the new rectangle to the layout
         layout.add_widget(new_rectangle)
 
-    def save_position(self, position):
-        """Save the rectangle's position to a file."""
-        with open("position.json", "w") as f:
-            json.dump({"x": position[0], "y": position[1]}, f)
+    def update_rectangle_position(self, rect_id, position):
+        """Update the position of a rectangle in the dictionary and save."""
+        self.rectangles[rect_id] = {"x": position[0], "y": position[1]}
+        self.save_all_positions()
 
-    def load_position(self):
-        """Load the rectangle's position from a file."""
+    def save_all_positions(self):
+        """Save all rectangle positions to a file."""
+        with open("rectangles.json", "w") as f:
+            json.dump(self.rectangles, f)
+
+    def load_all_position(self):
+        """Load all rectangle positions from a file."""
         try:
-            with open("position.json", "r") as f:
-                data = json.load(f)
-                return (data["x"], data["y"])
-        except (FileNotFoundError, KeyError, json.JSONDecodeError):
-            return None
+            with open("rectangles.json", "r") as f:
+                self.rectangles = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.rectangles = {}
 
+        # Recreate rectangles from the loaded positions
+        main_screen = self.sm.get_screen("main")
+        layout = main_screen.children[0]
+        for rect_id, pos in self.rectangles.items():
+            new_rectangle = DraggableRectangle()
+            new_rectangle.size_hint = (0.1, 0.2)
+            new_rectangle.pos = (pos["x"], pos["y"])
+            new_rectangle.bind(pos=lambda instance, value: self.update_rectangle_position(rect_id, instance.pos))
+            layout.add_widget(new_rectangle)
 
 if __name__ == '__main__':
     MainApp().run()
