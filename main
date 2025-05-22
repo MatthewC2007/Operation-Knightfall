@@ -12,7 +12,7 @@ from kivy.uix.floatlayout import FloatLayout
 kv = '''
 <DraggableRectangle@DragBehavior+Widget>:
     drag_timeout: 100000000
-    drag_distance: 100
+    drag_distance: 00
     drag_rectangle: self.x, self.y, self.width, self.height
     canvas:
         Color:
@@ -31,29 +31,38 @@ kv = '''
     FloatLayout:
         Label:
             text: "Welcome to the App!"
-            font_size: 32
+            font_size: self.size[1] * 0.5
             size_hint: None, None
             size: 100, 100
             pos_hint: {"center_x": 0.5, "center_y": 0.6}
         Button:
             text: "Enter"
-            size_hint: 0.1, 0.1
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.1
             pos_hint: {"center_x": 0.5, "center_y": 0.4}
             on_release: app.switch_to_main_screen()
+        
+
 <MainScreen>:
     FloatLayout:
         Button:
             text: 'Quit'
-            font_size: 10
-            size_hint: 0.1, 0.05
-            pos_hint: {"x": 0.88, "y": 0.05}
+            font_size: self.size[1] * 0.5
+            size_hint: 0.15, 0.05
+            pos_hint: {"x": 0.83, "y": 0.05}
             on_release: app.stop()
         Button:
             text: 'New Rectangle'
-            font_size: 10
-            size_hint: 0.1, 0.05
+            font_size: self.size[1] * 0.5
+            size_hint: 0.15, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.add_new_rectangle()
+        Button:
+            text: 'Settings'
+            font_size: self.size[1] * 0.5
+            size_hint: 0.15, 0.05
+            pos_hint: {"x": 0.41, "y": 0.05}
+            on_release: app.switch_to_settings()
 <Settings>:
     FloatLayout:
         Label:
@@ -107,6 +116,7 @@ class MainApp(App):
     def build(self):
         """Build the app."""
         self.rectangles = {}
+        
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
