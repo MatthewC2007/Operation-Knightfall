@@ -11,8 +11,8 @@ from kivy.uix.floatlayout import FloatLayout
 # KV language definition
 kv = '''
 <DraggableRectangle@DragBehavior+Widget>:
-    drag_timeout: 100000000
-    drag_distance: 00
+    drag_timeout: 10000000000
+    drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
     canvas:
         Color:
@@ -52,7 +52,7 @@ kv = '''
             pos_hint: {"x": 0.83, "y": 0.05}
             on_release: app.stop()
         Button:
-            text: 'New Rectangle'
+            text: 'New Note'
             font_size: self.size[1] * 0.5
             size_hint: 0.15, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
@@ -92,11 +92,12 @@ class Settings(Screen):
     pass
 
 class DraggableRectangle(DragBehavior, Widget):
-    def on_touch_move(self, touch):
+    def on_touch_move(self, touch): #DOES NOT WORK ATM
         """Override to restrict movement within window boundaries."""
         if self.collide_point(*touch.pos):
             new_x = self.x + touch.dx
             new_y = self.y + touch.dy
+            
             # Check boundaries
             if new_x < 0:
                 new_x = 0
@@ -111,6 +112,7 @@ class DraggableRectangle(DragBehavior, Widget):
             self.pos = (new_x, new_y)
             return True
         return super().on_touch_move(touch)
+    pass
 
 class MainApp(App):
     def build(self):
