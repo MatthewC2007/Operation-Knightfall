@@ -8,30 +8,36 @@ from kivy.core.window import Window
 from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
 
+
+font_name = "Freedom-10eM.ttf"  # Ensure this font file is in the same directory as your script
 # KV language definition
 kv = '''
 <DraggableRectangle@DragBehavior+Widget>:
-    drag_timeout: 10000000000
+    drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
+    canvas.before:
+        Color:
+            rgba: 0.6, 0.5, 0.1, 0.8 
+        
+        Rectangle:
+            pos: self.x+3, self.y-3
+            size: self.width, self.height
     canvas:
         Color:
-            rgba: 1, 1, 0.4, 1  # Red color
+            rgba: 1, 1, 0.5, 1  
         Rectangle:
             pos: self.pos
             size: self.size
-    canvas:
-        Color:
-            rgba: 1, 1, 0.5, 1  # Red color
-        Rectangle:
-            pos: self.pos
-            size: self.size
+
+            
     
 <WelcomeScreen>:
     FloatLayout:
         Label:
             text: "Welcome to the App!"
             font_size: self.size[1] * 0.5
+            font_name: "Freedom-10eM.ttf"
             size_hint: None, None
             size: 100, 100
             pos_hint: {"center_x": 0.5, "center_y": 0.6}
@@ -65,17 +71,25 @@ kv = '''
             on_release: app.switch_to_settings()
 <Settings>:
     FloatLayout:
+        canvas:
+            Color:
+                rgba: 1, 1, 1, 0.6  
+            Rectangle:
+                pos: self.pos
+                size: 0.1, 0.2    
+            
         Label:
             text: "Settings"
             font_size: 32
             size_hint: 0.6, 0.2
-            pos_hint: {"x": 0.5, "y": 0.6}
+            pos_hint: {"center_x": 0.5, "top": 1}
         Button:
             text: "Back to Main"
             size_hint: 0.2, 0.1
             pos_hint: {"x": 0.79, "y": 0.05}
             border: 10,10,10,10
-            on_release: app.switch_to_main_screen()            
+            on_release: app.switch_to_main_screen()
+                
 '''
 
 Builder.load_string(kv)
@@ -92,13 +106,19 @@ class Settings(Screen):
     pass
 
 class DraggableRectangle(DragBehavior, Widget):
-    def on_touch_move(self, touch): #DOES NOT WORK ATM
-        """Override to restrict movement within window boundaries."""
+    dragging_widget = None
+    
+    def on_touch_down(self, touch): #DOES NOT WORK ATM
         if self.collide_point(*touch.pos):
+            DraggableRectangle.dragging_widget = self
+            return super().on_touch_move(touch)
+        return False
+    
+    def on_touch_move(self, touch):
+        if DraggableRectangle.dragging_widget is self:
             new_x = self.x + touch.dx
             new_y = self.y + touch.dy
-            
-            # Check boundaries
+
             if new_x < 0:
                 new_x = 0
             if new_y < 0:
@@ -108,10 +128,14 @@ class DraggableRectangle(DragBehavior, Widget):
             if new_y + self.height > Window.height:
                 new_y = Window.height - self.height
 
-            # Update position
             self.pos = (new_x, new_y)
             return True
-        return super().on_touch_move(touch)
+        return False
+    
+    def on_touch_up(self, touch):
+        if DraggableRectangle.dragging_widget is self:
+            DraggableRectangle.dragging_widget = None
+        return super().on_touch_up(touch)
     pass
 
 class MainApp(App):
