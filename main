@@ -9,7 +9,7 @@ from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
 
 
-font_name = "Freedom-10eM.ttf"  # Ensure this font file is in the same directory as your script
+
 # KV language definition
 kv = '''
 <DraggableRectangle@DragBehavior+Widget>:
@@ -37,7 +37,6 @@ kv = '''
         Label:
             text: "Welcome to the App!"
             font_size: self.size[1] * 0.5
-            font_name: "Freedom-10eM.ttf"
             size_hint: None, None
             size: 100, 100
             pos_hint: {"center_x": 0.5, "center_y": 0.6}
@@ -52,22 +51,16 @@ kv = '''
 <MainScreen>:
     FloatLayout:
         Button:
-            text: 'Quit'
-            font_size: self.size[1] * 0.5
-            size_hint: 0.15, 0.05
-            pos_hint: {"x": 0.83, "y": 0.05}
-            on_release: app.stop()
-        Button:
             text: 'New Note'
             font_size: self.size[1] * 0.5
-            size_hint: 0.15, 0.05
+            size_hint: 0.13, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.add_new_rectangle()
         Button:
             text: 'Settings'
             font_size: self.size[1] * 0.5
-            size_hint: 0.15, 0.05
-            pos_hint: {"x": 0.41, "y": 0.05}
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.12}
             on_release: app.switch_to_settings()
 <Settings>:
     FloatLayout:
@@ -81,13 +74,13 @@ kv = '''
         Label:
             text: "Settings"
             font_size: 32
-            size_hint: 0.6, 0.2
+            size_hint: 0.13, 0.05
             pos_hint: {"center_x": 0.5, "top": 1}
         Button:
             text: "Back to Main"
-            size_hint: 0.2, 0.1
-            pos_hint: {"x": 0.79, "y": 0.05}
-            border: 10,10,10,10
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.switch_to_main_screen()
                 
 '''
