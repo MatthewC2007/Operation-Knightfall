@@ -1,0 +1,70 @@
+
+<DraggableRectangle@DragBehavior+Widget>:
+    drag_timeout: 100000000
+    drag_distance: 0
+    drag_rectangle: self.x, self.y, self.width, self.height
+    canvas.before:
+        Color:
+            rgba: 0.6, 0.5, 0.1, 0.8 
+        
+        Rectangle:
+            pos: self.x+3, self.y-3
+            size: self.width, self.height
+    canvas:
+        Color:
+            rgba: 1, 1, 0.5, 1  
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    
+<WelcomeScreen>:
+    FloatLayout:
+        Label:
+            text: "Welcome to the App!"
+            font_size: self.size[1] * 0.5
+            size_hint: None, None
+            size: 100, 100
+            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+        Button:
+            background_color: "cyan"
+            text: "Enter"
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.1
+            pos_hint: {"center_x": 0.5, "center_y": 0.4}
+            on_release: app.switch_to_main_screen()
+        
+<MainScreen>:
+    FloatLayout:
+        Button:
+            text: 'New Note'
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.12}
+            on_release: app.add_new_rectangle()
+        Button:
+            text: 'Settings'
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.05}
+            on_release: app.switch_to_settings()
+<Settings>:
+    FloatLayout:
+        canvas:
+            Color:
+                rgba: 1, 1, 1, 0.6  
+            Rectangle:
+                pos: self.pos
+                size: 0.1, 0.2    
+            
+        Label:
+            text: "Settings"
+            font_size: 32
+            size_hint: 0.13, 0.05
+            pos_hint: {"center_x": 0.5, "top": 1}
+        Button:
+            text: "Back to Main"
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.05}
+            on_release: app.switch_to_main_screen()
+                
