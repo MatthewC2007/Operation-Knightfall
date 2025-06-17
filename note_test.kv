@@ -1,13 +1,16 @@
-<Button>
-    font_size: 32
-    size_hint: (0.3, 0.3)
 
-<MyLayout>
-
+<Stickynote>:
     FloatLayout:
-        size: root.width, root.height
+        canvas:
+            Color:
+                rgba: 1, 1, 0.5, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
 
-        Button:
-            text: "Button of doom"
-            pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            
+    TextInput:
+        id: text_input
+        hint_text: "Type your note here..."
+        size_hint: 0.2,0.1
+        pos_hint: {"center_x": 0.5, "center_y": 0.5}
+        multiline: True

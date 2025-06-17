@@ -9,13 +9,13 @@ from kivy.lang import Builder
 
 Builder.load_file('note_test.kv')
 
-class MyLayout(Widget):
+class Stickynote(FloatLayout):
     pass
 
 class MyApp(App):
     def build(self):
-        Window.clearcolor = (1, 1, 1, 1)  # Set background color to white
-        return MyLayout()
+        Window.clearcolor = (0, 0, 0, 1)  # Set background color to white
+        return Stickynote()
     
 if __name__ == '__main__':
     MyApp().run()
