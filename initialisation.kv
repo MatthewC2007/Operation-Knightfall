@@ -15,15 +15,30 @@
         Rectangle:
             pos: self.pos
             size: self.size
+    
 
     FloatLayout:
-        TextInput:
-            id: text_input
-            hint_text: "Type your note here..."
-            size_hint: 0.2, 0.15
+        Button:
+            id: rectagle_button
+            text: root.text if root.text else "Click to Edit"
+            size_hint: 0.5, 0.5
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
-            multiline: True
+            on_release: root.open_popup()
     
+<PopupWindow>:
+    title: "Edit Text"
+    size_hint: 0.8, 0.8
+    auto_dismiss: False
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: popup_text_input
+            hint_text: "Type your note here..."
+            multiline: True
+        Button:
+            text: "Save"
+            on_release: root.save_text()    
+
 <WelcomeScreen>:
     FloatLayout:
         Label:
@@ -54,6 +69,8 @@
             size_hint: 0.13, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.switch_to_settings()
+
+        
 <Settings>:
     FloatLayout:
         canvas:

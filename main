@@ -7,9 +7,126 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
 from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.button import Button
+from kivy.uix.popup import Popup
+from kivy.properties import StringProperty
+from kivy.uix.textinput import TextInput
+from kivy.uix.boxlayout import BoxLayout
+import os
 Window.maximize()
+kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
+    size_hint: None, None
+    size: 200, 220
+    drag_timeout: 100000000
+    drag_distance: 0
+    drag_rectangle: self.x, self.y, self.width, self.height
 
-Builder.load_file('initialisation.kv')
+    canvas.before:
+        Color:
+            rgba: 0.6, 0.5, 0.1, 0.8 
+        Rectangle:
+            pos: self.x + 3, self.y - 3
+            size: self.size
+    canvas:
+        Color:
+            rgba: 1, 1, 0.5, 1  
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: 'vertical'
+        size: root.size
+        pos: root.pos
+        padding: 10
+        spacing: 5
+
+        TextInput:
+            id: text_input
+            hint_text: "Type your note here..."
+            size_hint_y: 0.7
+            multiline: True
+
+        BoxLayout:
+            size_hint_y: 0.3
+            spacing: 10
+
+            Button:
+                id: note_save
+                text: "Save"
+                on_release: root.save_note()
+
+            Button:
+                id: note_delete
+                text: "Delete"
+                on_release: root.delete_note()
+    
+
+<WelcomeScreen>:
+    FloatLayout:
+        Label:
+            text: "Welcome to the App"
+            font_size: self.size[1] * 0.5
+            size_hint: None, None
+            size: 100, 100
+            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+        Button:
+            background_color: "cyan"
+            text: "Enter"
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.1
+            pos_hint: {"center_x": 0.5, "center_y": 0.4}
+            on_release: app.switch_to_main_screen()
+        
+<MainScreen>:
+
+    
+    FloatLayout:
+        Button:
+            text: 'New Note'
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.12}
+            on_release: app.add_new_rectangle()
+        Button:
+            text: 'Settings'
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.05}
+            on_release: app.switch_to_settings()
+        Label:
+            text: "Music Player"
+            font_size: 20
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.7, "y": 0.3}
+            
+        
+
+        
+<Settings>:
+    FloatLayout:
+        canvas:
+            Color:
+                rgba: 1, 1, 1, 0.6  
+            Rectangle:
+                pos: self.pos
+                size: self.size
+            
+        Label:
+            text: "Settings"
+            font_size: 32
+            size_hint: 0.13, 0.05
+            pos_hint: {"center_x": 0.5, "top": 1}
+        Button:
+            text: "Back to Main"
+            font_size: self.size[1] * 0.5
+            size_hint: 0.13, 0.05
+            pos_hint: {"x": 0.02, "y": 0.05}
+            on_release: app.switch_to_main_screen()
+                """
+
+
+Builder.load_string(kv)
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
 
 class WelcomeScreen(Screen):
@@ -18,15 +135,23 @@ class MainScreen(Screen):
     pass
 class Settings(Screen):
     pass
-class DraggableRectangle(DragBehavior, Widget):
+
+class DraggableRectangle(DragBehavior, FloatLayout):
     dragging_widget = None
-    
-    def on_touch_down(self, touch): #DOES NOT WORK ATM
+
+    def __init__(self, note_id=None, **kwargs):
+        super().__init__(**kwargs)
+        self.note_id = note_id or "note_temp"
+        self.load_note()
+
+    def on_touch_down(self, touch): 
         if self.collide_point(*touch.pos):
-            DraggableRectangle.dragging_widget = self
-            return super().on_touch_move(touch)
-        return False
-    
+            for child in self.children:
+                if child.collide_point(*touch.pos):
+                    DraggableRectangle.dragging_widget = self
+                    return super().on_touch_down(touch)
+        return super().on_touch_down(touch)
+
     def on_touch_move(self, touch):
         if DraggableRectangle.dragging_widget is self:
             new_x = self.x + touch.dx
@@ -43,13 +168,35 @@ class DraggableRectangle(DragBehavior, Widget):
 
             self.pos = (new_x, new_y)
             return True
-        return False
-    
+        return super().on_touch_move(touch)
+
     def on_touch_up(self, touch):
         if DraggableRectangle.dragging_widget is self:
             DraggableRectangle.dragging_widget = None
         return super().on_touch_up(touch)
-    pass
+
+    def save_note(self):
+        note_content = self.ids.text_input.text
+        with open(f'note_{self.note_id}.json', 'w', encoding="utf-8") as f:
+            json.dump({"note": note_content}, f)
+
+    def load_note(self):
+        try:
+            with open(f'note_{self.note_id}.json', 'r', encoding="utf-8") as f:
+                data = json.load(f)
+                self.ids.text_input.text = data.get("note", "")
+        except FileNotFoundError:
+            self.ids.text_input.text = ""
+
+    def delete_note(self):
+        try:
+            os.remove(f'note_{self.note_id}.json')
+        except FileNotFoundError:
+            pass
+        self.parent.remove_widget(self)
+
+
+   
 
 class MainApp(App):
     def build(self):
@@ -99,25 +246,26 @@ class MainApp(App):
         self.sm.current = "setting"
 
     def add_new_rectangle(self):
-        """Add a new draggable rectangle to the main screen."""
         main_screen = self.sm.get_screen("main")
-        layout = main_screen.children[0]  # Access the FloatLayout directly
+        layout = main_screen.children[0]
 
-        new_rectangle = DraggableRectangle()
+        rect_id = f"rect{len(self.rectangles) + 1}"
+        new_rectangle = DraggableRectangle(note_id=rect_id)
         new_rectangle.size_hint = (0.1, 0.2)
         new_rectangle.pos = (100, 100)
 
-        rect_id = f"rect{len(self.rectangles) + 1}"
         self.rectangles[rect_id] = {"x": 100, "y": 100}
-        new_rectangle.bind(pos=lambda instance,
-                            value: self.update_rectangle_position(rect_id,
-                                                                instance.pos))
+        new_rectangle.bind(pos=lambda instance, value: self.update_rectangle_position(rect_id, instance.pos))
         layout.add_widget(new_rectangle)
+        self.save_all_positions()
+
 
     def update_rectangle_position(self, rect_id, position):
         """Update the position of a rectangle in the dictionary and save."""
         self.rectangles[rect_id] = {"x": position[0], "y": position[1]}
         self.save_all_positions()
+
+
 
 if __name__ == '__main__':
     MainApp().run()
