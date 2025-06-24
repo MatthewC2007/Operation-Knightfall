@@ -9,7 +9,7 @@ from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
 from kivy.uix.popup import Popup
-from kivy.properties import StringProperty
+from kivy.properties import ObjectProperty
 from kivy.uix.textinput import TextInput
 from kivy.uix.boxlayout import BoxLayout
 import os
@@ -43,13 +43,14 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
 
         TextInput:
             id: text_input
+            on_text: root.text_input_ref = self
             hint_text: "Type your note here..."
             size_hint_y: 0.7
             multiline: True
 
         BoxLayout:
             size_hint_y: 0.3
-            spacing: 10
+            spacing: 20
 
             Button:
                 id: note_save
@@ -61,7 +62,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 text: "Delete"
                 on_release: root.delete_note()
     
-
 <WelcomeScreen>:
     FloatLayout:
         Label:
@@ -78,9 +78,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             pos_hint: {"center_x": 0.5, "center_y": 0.4}
             on_release: app.switch_to_main_screen()
         
-<MainScreen>:
-
-    
+<MainScreen>:  
     FloatLayout:
         Button:
             text: 'New Note'
@@ -99,18 +97,16 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             font_size: 20
             size_hint: 0.13, 0.05
             pos_hint: {"x": 0.7, "y": 0.3}
-            
         
-
         
 <Settings>:
     FloatLayout:
-        canvas:
-            Color:
-                rgba: 1, 1, 1, 0.6  
-            Rectangle:
-                pos: self.pos
-                size: self.size
+        #canvas:
+            #Color:
+                #rgba: 1, 1, 1, 0.6  
+            #Rectangle:
+                #pos: self.pos
+                #size: self.size
             
         Label:
             text: "Settings"
@@ -125,7 +121,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             on_release: app.switch_to_main_screen()
                 """
 
-
 Builder.load_string(kv)
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
 
@@ -138,6 +133,7 @@ class Settings(Screen):
 
 class DraggableRectangle(DragBehavior, FloatLayout):
     dragging_widget = None
+    text_input_ref = ObjectProperty(None)
 
     def __init__(self, note_id=None, **kwargs):
         super().__init__(**kwargs)
@@ -176,7 +172,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         return super().on_touch_up(touch)
 
     def save_note(self):
-        note_content = self.ids.text_input.text
+        note_content = self.text_input_ref.text
         with open(f'note_{self.note_id}.json', 'w', encoding="utf-8") as f:
             json.dump({"note": note_content}, f)
 
@@ -184,9 +180,9 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         try:
             with open(f'note_{self.note_id}.json', 'r', encoding="utf-8") as f:
                 data = json.load(f)
-                self.ids.text_input.text = data.get("note", "")
+                self.text_input_ref.text = data.get("note", "")
         except FileNotFoundError:
-            self.ids.text_input.text = ""
+            self.text_input_ref.text = ""
 
     def delete_note(self):
         try:
@@ -194,9 +190,6 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         except FileNotFoundError:
             pass
         self.parent.remove_widget(self)
-
-
-   
 
 class MainApp(App):
     def build(self):
@@ -259,13 +252,10 @@ class MainApp(App):
         layout.add_widget(new_rectangle)
         self.save_all_positions()
 
-
     def update_rectangle_position(self, rect_id, position):
         """Update the position of a rectangle in the dictionary and save."""
         self.rectangles[rect_id] = {"x": position[0], "y": position[1]}
         self.save_all_positions()
-
-
 
 if __name__ == '__main__':
     MainApp().run()
