@@ -8,11 +8,11 @@ from kivy.core.window import Window
 from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
-from kivy.uix.popup import Popup
-from kivy.properties import ObjectProperty
+from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.textinput import TextInput
 from kivy.uix.boxlayout import BoxLayout
 import os
+from kivy.clock import Clock
 Window.maximize()
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
@@ -43,10 +43,10 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
 
         TextInput:
             id: text_input
-            on_text: root.text_input_ref = self
             hint_text: "Type your note here..."
             size_hint_y: 0.7
             multiline: True
+            on_parent: root.text_input_ref = self
 
         BoxLayout:
             size_hint_y: 0.3
@@ -134,11 +134,13 @@ class Settings(Screen):
 class DraggableRectangle(DragBehavior, FloatLayout):
     dragging_widget = None
     text_input_ref = ObjectProperty(None)
+    note_id = StringProperty("note_temp")
 
-    def __init__(self, note_id=None, **kwargs):
+    def __init__(self, note_id="note_temp", **kwargs):
         super().__init__(**kwargs)
-        self.note_id = note_id or "note_temp"
+        self.note_id = note_id
         self.load_note()
+        Clock.schedule_once(self.load_note, 0.1) 
 
     def on_touch_down(self, touch): 
         if self.collide_point(*touch.pos):
@@ -172,24 +174,37 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         return super().on_touch_up(touch)
 
     def save_note(self):
-        note_content = self.text_input_ref.text
-        with open(f'note_{self.note_id}.json', 'w', encoding="utf-8") as f:
-            json.dump({"note": note_content}, f)
+        if self.text_input_ref:
+            note_content = self.text_input_ref.text
+            with open(f'note_{self.note_id}.json', 'w', encoding="utf-8") as f:
+                json.dump({"note": note_content}, f)
 
-    def load_note(self):
+    def load_note(self, dt=None):
         try:
             with open(f'note_{self.note_id}.json', 'r', encoding="utf-8") as f:
                 data = json.load(f)
-                self.text_input_ref.text = data.get("note", "")
+                if self.text_input_ref:
+                    self.text_input_ref.text = data.get("note", "")
         except FileNotFoundError:
-            self.text_input_ref.text = ""
+            if self.text_input_ref:
+                self.text_input_ref.text = ""
 
     def delete_note(self):
+        # Remove the saved note file
         try:
             os.remove(f'note_{self.note_id}.json')
         except FileNotFoundError:
             pass
-        self.parent.remove_widget(self)
+
+        # Inform the main app to remove from position tracking
+        app = App.get_running_app()
+        if self.note_id in app.rectangles:
+            del app.rectangles[self.note_id]
+            app.save_all_positions()
+
+        # Remove the widget from the screen
+        if self.parent:
+            self.parent.remove_widget(self)
 
 class MainApp(App):
     def build(self):
@@ -204,26 +219,23 @@ class MainApp(App):
         return self.sm
         
     def save_all_positions(self):
-        """Save all rectangle positions to a file."""
+
         with open("rectangles.json", "w") as f:
             json.dump(self.rectangles, f)
 
     def load_all_position(self):
-        """Load all rectangle positions from a file."""
         try:
             with open("rectangles.json", "r") as f:
                 self.rectangles = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             self.rectangles = {}
 
-        # Recreate rectangles from the loaded positions
         main_screen = self.sm.get_screen("main")
-        
         layout = FloatLayout()
         main_screen.add_widget(layout)
     
         for rect_id, pos in self.rectangles.items():
-            new_rectangle = DraggableRectangle()
+            new_rectangle = DraggableRectangle(note_id=rect_id)
             new_rectangle.size_hint = (0.1, 0.2)
             new_rectangle.pos = (pos["x"], pos["y"])
             new_rectangle.bind(pos=lambda instance,
