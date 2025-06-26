@@ -13,6 +13,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.boxlayout import BoxLayout
 import os
 from kivy.clock import Clock
+import uuid
 Window.maximize()
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
@@ -61,6 +62,20 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 id: note_delete
                 text: "Delete"
                 on_release: root.delete_note()
+
+<Draggablemusicplayer@DragBehavior+FloatLayout>:
+    size_hint: None, None
+    size: 200, 220
+    drag_timeout: 100000000
+    drag_distance: 0
+    drag_rectangle: self.x, self.y, self.width, self.height
+
+    canvas:
+        Color:
+            rgba: 1, 1, 0.5, 1  
+        Rectangle:
+            pos: self.pos
+            size: self.size
     
 <WelcomeScreen>:
     FloatLayout:
@@ -92,11 +107,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             size_hint: 0.13, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.switch_to_settings()
-        Label:
-            text: "Music Player"
-            font_size: 20
-            size_hint: 0.13, 0.05
-            pos_hint: {"x": 0.7, "y": 0.3}
+        
         
         
 <Settings>:
@@ -206,11 +217,43 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         if self.parent:
             self.parent.remove_widget(self)
 
+class Draggablemusicplayer(DragBehavior, FloatLayout):
+    dragging_widget = None
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            Draggablemusicplayer.dragging_widget = self
+            return super().on_touch_down(touch)
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if Draggablemusicplayer.dragging_widget is self:
+            new_x = self.x + touch.dx
+            new_y = self.y + touch.dy
+
+            if new_x < 0:
+                new_x = 0
+            if new_y < 0:
+                new_y = 0
+            if new_x + self.width > Window.width:
+                new_x = Window.width - self.width
+            if new_y + self.height > Window.height:
+                new_y = Window.height - self.height
+
+            self.pos = (new_x, new_y)
+            return True
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        if Draggablemusicplayer.dragging_widget is self:
+            Draggablemusicplayer.dragging_widget = None
+        return super().on_touch_up(touch)
+
 class MainApp(App):
     def build(self):
         """Build the app."""
         self.rectangles = {}
-        
+        self.music_player = {}
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
@@ -254,7 +297,7 @@ class MainApp(App):
         main_screen = self.sm.get_screen("main")
         layout = main_screen.children[0]
 
-        rect_id = f"rect{len(self.rectangles) + 1}"
+        rect_id = str(uuid.uuid4())
         new_rectangle = DraggableRectangle(note_id=rect_id)
         new_rectangle.size_hint = (0.1, 0.2)
         new_rectangle.pos = (100, 100)
