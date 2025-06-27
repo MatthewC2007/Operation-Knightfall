@@ -65,18 +65,45 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
 
 <Draggablemusicplayer@DragBehavior+FloatLayout>:
     size_hint: None, None
-    size: 200, 220
+    size: 220, 300
     drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
 
     canvas:
         Color:
-            rgba: 1, 1, 0.5, 1  
+            rgba: 0, 0.6, 1, 0.5  
         Rectangle:
             pos: self.pos
             size: self.size
-    
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size: root.size
+        pos: root.pos
+        padding: 10
+        spacing: 5
+        
+        
+        Button:
+            text: "Back"
+            size_hint_y: 0.1
+            on_release: print("Back a song")  # Placeholder for back action
+        Button:
+            text: "Play"
+            size_hint_y: 0.1
+            on_release: print("Play music")  # Placeholder for play action
+
+        Button:
+            text: "Pause"
+            size_hint_y: 0.1
+            on_release: print("Pause music")  # Placeholder for pause action
+
+        Button:
+            text:"Skip"
+            size_hint_y: 0.1
+            on_release: print("Skip music")  # Placeholder for skip action
+        
 <WelcomeScreen>:
     FloatLayout:
         Label:
@@ -161,24 +188,6 @@ class DraggableRectangle(DragBehavior, FloatLayout):
                     return super().on_touch_down(touch)
         return super().on_touch_down(touch)
 
-    def on_touch_move(self, touch):
-        if DraggableRectangle.dragging_widget is self:
-            new_x = self.x + touch.dx
-            new_y = self.y + touch.dy
-
-            if new_x < 0:
-                new_x = 0
-            if new_y < 0:
-                new_y = 0
-            if new_x + self.width > Window.width:
-                new_x = Window.width - self.width
-            if new_y + self.height > Window.height:
-                new_y = Window.height - self.height
-
-            self.pos = (new_x, new_y)
-            return True
-        return super().on_touch_move(touch)
-
     def on_touch_up(self, touch):
         if DraggableRectangle.dragging_widget is self:
             DraggableRectangle.dragging_widget = None
@@ -226,24 +235,6 @@ class Draggablemusicplayer(DragBehavior, FloatLayout):
             return super().on_touch_down(touch)
         return super().on_touch_down(touch)
 
-    def on_touch_move(self, touch):
-        if Draggablemusicplayer.dragging_widget is self:
-            new_x = self.x + touch.dx
-            new_y = self.y + touch.dy
-
-            if new_x < 0:
-                new_x = 0
-            if new_y < 0:
-                new_y = 0
-            if new_x + self.width > Window.width:
-                new_x = Window.width - self.width
-            if new_y + self.height > Window.height:
-                new_y = Window.height - self.height
-
-            self.pos = (new_x, new_y)
-            return True
-        return super().on_touch_move(touch)
-
     def on_touch_up(self, touch):
         if Draggablemusicplayer.dragging_widget is self:
             Draggablemusicplayer.dragging_widget = None
@@ -253,7 +244,8 @@ class MainApp(App):
     def build(self):
         """Build the app."""
         self.rectangles = {}
-        self.music_player = {}
+        self.music_player = {}  # for position saving
+        self.music_player_widget = None  # optional reference
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
@@ -266,12 +258,21 @@ class MainApp(App):
         with open("rectangles.json", "w") as f:
             json.dump(self.rectangles, f)
 
+        with open("music.json", "w") as f:
+            json.dump(self.music_player, f)
+
     def load_all_position(self):
         try:
             with open("rectangles.json", "r") as f:
                 self.rectangles = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             self.rectangles = {}
+
+        try:
+            with open("music.json", "r") as f:
+                self.music_player = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.music_player = {}
 
         main_screen = self.sm.get_screen("main")
         layout = FloatLayout()
@@ -282,8 +283,20 @@ class MainApp(App):
             new_rectangle.size_hint = (0.1, 0.2)
             new_rectangle.pos = (pos["x"], pos["y"])
             new_rectangle.bind(pos=lambda instance,
-                value: self.update_rectangle_position(rect_id, instance.pos))
+                value: self.update_rectangle_pos(rect_id, instance.pos))
             layout.add_widget(new_rectangle)
+
+        # Load persistent music player
+        pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # default position
+        music_player = Draggablemusicplayer()
+        music_player.size_hint = (None, None)
+        music_player.size = (280, 300)
+        music_player.pos = (pos["x"], pos["y"])
+        music_player.bind(pos=lambda instance, value: self.update_musicplayer_pos(instance.pos))
+        layout.add_widget(music_player)
+        self.music_player_widget = music_player  # store a reference if needed
+
+
 
     def switch_to_main_screen(self):
         """Switch to the main screen."""
@@ -303,14 +316,20 @@ class MainApp(App):
         new_rectangle.pos = (100, 100)
 
         self.rectangles[rect_id] = {"x": 100, "y": 100}
-        new_rectangle.bind(pos=lambda instance, value: self.update_rectangle_position(rect_id, instance.pos))
+        new_rectangle.bind(pos=lambda instance, value: self.update_rectangle_pos(rect_id, instance.pos))
         layout.add_widget(new_rectangle)
         self.save_all_positions()
 
-    def update_rectangle_position(self, rect_id, position):
+    def update_rectangle_pos(self, rect_id, position):
         """Update the position of a rectangle in the dictionary and save."""
         self.rectangles[rect_id] = {"x": position[0], "y": position[1]}
         self.save_all_positions()
+
+    def update_musicplayer_pos(self, pos):
+        """Update the position of the music player in the dictionary and save."""
+        self.music_player["music_player"] = {"x": pos[0], "y": pos[1]}
+        with open("music.json", "w") as f:
+            json.dump(self.music_player, f)
 
 if __name__ == '__main__':
     MainApp().run()
