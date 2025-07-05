@@ -17,7 +17,7 @@ import uuid
 Window.maximize()
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
-    size: 200, 220
+    size: 250, 300
     drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
@@ -45,12 +45,12 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
         TextInput:
             id: text_input
             hint_text: "Type your note here..."
-            size_hint_y: 0.7
+            size_hint_y: 0.8
             multiline: True
             on_parent: root.text_input_ref = self
 
         BoxLayout:
-            size_hint_y: 0.3
+            size_hint_y: 0.2
             spacing: 20
 
             Button:
@@ -65,14 +65,14 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
 
 <Draggablemusicplayer@DragBehavior+FloatLayout>:
     size_hint: None, None
-    size: 220, 300
+    size: 320, 360
     drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
 
     canvas:
         Color:
-            rgba: 0, 0.6, 1, 0.5  
+            rgba: 0, 0.6, 1, 1  
         Rectangle:
             pos: self.pos
             size: self.size
@@ -177,7 +177,9 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     def __init__(self, note_id="note_temp", **kwargs):
         super().__init__(**kwargs)
         self.note_id = note_id
-        self.load_note()
+        self.size_hint = (None, None)
+        self.size = (250, 300)
+        
         Clock.schedule_once(self.load_note, 0.1) 
 
     def on_touch_down(self, touch): 
@@ -185,6 +187,11 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             for child in self.children:
                 if child.collide_point(*touch.pos):
                     DraggableRectangle.dragging_widget = self
+                    # Bring this widget to front by removing and re-adding it
+                    if self.parent:
+                        parent = self.parent
+                        parent.remove_widget(self)
+                        parent.add_widget(self)
                     return super().on_touch_down(touch)
         return super().on_touch_down(touch)
 
@@ -232,6 +239,11 @@ class Draggablemusicplayer(DragBehavior, FloatLayout):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             Draggablemusicplayer.dragging_widget = self
+            # Bring this widget to front by removing and re-adding it
+            if self.parent:
+                parent = self.parent
+                parent.remove_widget(self)
+                parent.add_widget(self)
             return super().on_touch_down(touch)
         return super().on_touch_down(touch)
 
@@ -280,7 +292,8 @@ class MainApp(App):
     
         for rect_id, pos in self.rectangles.items():
             new_rectangle = DraggableRectangle(note_id=rect_id)
-            new_rectangle.size_hint = (0.1, 0.2)
+            new_rectangle.size_hint = (None, None)
+            new_rectangle.size = (250, 300)  # default size
             new_rectangle.pos = (pos["x"], pos["y"])
             new_rectangle.bind(pos=lambda instance,
                 value: self.update_rectangle_pos(rect_id, instance.pos))
@@ -290,7 +303,7 @@ class MainApp(App):
         pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # default position
         music_player = Draggablemusicplayer()
         music_player.size_hint = (None, None)
-        music_player.size = (280, 300)
+        music_player.size = (320, 360)
         music_player.pos = (pos["x"], pos["y"])
         music_player.bind(pos=lambda instance, value: self.update_musicplayer_pos(instance.pos))
         layout.add_widget(music_player)
@@ -312,7 +325,8 @@ class MainApp(App):
 
         rect_id = str(uuid.uuid4())
         new_rectangle = DraggableRectangle(note_id=rect_id)
-        new_rectangle.size_hint = (0.1, 0.2)
+        new_rectangle.size_hint = (None, None)
+        new_rectangle.size = (250, 300)
         new_rectangle.pos = (100, 100)
 
         self.rectangles[rect_id] = {"x": 100, "y": 100}
