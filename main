@@ -329,7 +329,7 @@ class MainApp(App):
         """Update the position of the music player in the dictionary and save."""
         self.music_player["music_player"] = {"x": pos[0], "y": pos[1]}
         with open("music.json", "w") as f:
-            json.dump(self.music_player, f)
+                json.dump(self.music_player, f)
 
 if __name__ == '__main__':
     MainApp().run()
