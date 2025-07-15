@@ -7,10 +7,8 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
 from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.button import Button
 from kivy.properties import ObjectProperty, StringProperty
-from kivy.uix.textinput import TextInput
-from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.progressbar import ProgressBar
 import os
 from kivy.clock import Clock
 import uuid
@@ -70,7 +68,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
 
-    canvas:
+    canvas.before:
         Color:
             rgba: 0, 0.6, 1, 1  
         Rectangle:
@@ -78,13 +76,33 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             size: self.size
 
     BoxLayout:
-        orientation: 'horizontal'
+        orientation: 'vertical'
         size: root.size
         pos: root.pos
         padding: 10
         spacing: 5
         
+        canvas:
+            Color:
+                rgba: 0, 0.7, 1, 1  
+            Rectangle:
+                pos: self.center_x - 110, self.center_y - 50  # Offset by half the rectangle's size
+                size: 220, 200  # Keep the same size
         
+        ProgressBar:
+            id: progress_bar
+            size_hint_y: 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.2}
+            max: 100
+            value: 0  # Placeholder for progress value
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size: root.size
+        pos: root.pos
+        spacing: 5
+        padding: 10
+
         Button:
             text: "Back"
             size_hint_y: 0.1
@@ -103,6 +121,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             text:"Skip"
             size_hint_y: 0.1
             on_release: print("Skip music")  # Placeholder for skip action
+
         
 <WelcomeScreen>:
     FloatLayout:
