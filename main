@@ -82,45 +82,59 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
         padding: 10
         spacing: 5
         
+        # First: Blue rectangle at top
         canvas:
             Color:
-                rgba: 0, 0.7, 1, 1  
+                rgba: 0, 0, 0.5, 1  
             Rectangle:
-                pos: self.center_x - 110, self.center_y - 50  # Offset by half the rectangle's size
-                size: 220, 200  # Keep the same size
+                pos: self.center_x - 110, self.center_y - 50 
+                size: 220, 200
         
+        # Empty widget for spacing
+        Widget:
+            size_hint_y: 0.6
+        
+        # Second: Progress bar below rectangle
         ProgressBar:
             id: progress_bar
-            size_hint_y: 1
-            pos_hint: {"center_x": 0.5, "center_y": 0.2}
+            size_hint_y: 0.1
+            size_hint_x: 0.8
+            pos_hint: {"center_x": 0.5}
             max: 100
-            value: 0  # Placeholder for progress value
+            value: 37
+        
+        # Third: Buttons at bottom
+        GridLayout:
+            cols: 4
+            size_hint_y: 0.15
+            padding: 10
+            spacing: 5
 
-    BoxLayout:
-        orientation: 'horizontal'
-        size: root.size
-        pos: root.pos
-        spacing: 5
-        padding: 10
+            Button:
+                text: "Back"
+                size_hint_y: 0.1
+                on_release: print("Back a song")
+            Button:
+                text: "Play"
+                size_hint_y: 0.1
+                on_release: print("Play music")  # Placeholder for play action
 
-        Button:
-            text: "Back"
-            size_hint_y: 0.1
-            on_release: print("Back a song")  # Placeholder for back action
-        Button:
-            text: "Play"
-            size_hint_y: 0.1
-            on_release: print("Play music")  # Placeholder for play action
+            Button:
+                text: "Pause"
+                size_hint_y: 0.1
+                on_release: print("Pause music")  # Placeholder for pause action
 
-        Button:
-            text: "Pause"
-            size_hint_y: 0.1
-            on_release: print("Pause music")  # Placeholder for pause action
-
-        Button:
-            text:"Skip"
-            size_hint_y: 0.1
-            on_release: print("Skip music")  # Placeholder for skip action
+            Button:
+                text:"Skip"
+                size_hint_y: 0.1
+                on_release: print("Skip music")  # Placeholder for skip action
+            
+            Label:
+                text: "Music Player"
+                size_hint_y: 0.1
+                size_hint_x: 0.8
+                pos_hint: {"center_x": 0.5}
+                font_size: self.size[1] * 0.5
 
         
 <WelcomeScreen>:
@@ -155,7 +169,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             on_release: app.switch_to_settings()
         
         
-        
 <Settings>:
     FloatLayout:
         #canvas:
@@ -180,7 +193,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
 
 Builder.load_string(kv)
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
-
 class WelcomeScreen(Screen):
     pass
 class MainScreen(Screen):
