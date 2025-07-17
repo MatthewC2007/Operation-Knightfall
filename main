@@ -79,7 +79,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
         orientation: 'vertical'
         size: root.size
         pos: root.pos
-        padding: 10
+        padding: 15
         spacing: 5
         
         # First: Blue rectangle at top
@@ -92,7 +92,14 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
         
         # Empty widget for spacing
         Widget:
-            size_hint_y: 0.6
+            size_hint_y: 0.7
+
+        Label:
+            text: "Song name.filetype"
+            size_hint_y: 0.1
+            size_hint_x: 0.8
+            pos_hint: {"center_x": 0.5}
+            font_size: self.size[1] * 0.6
         
         # Second: Progress bar below rectangle
         ProgressBar:
@@ -129,14 +136,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 size_hint_y: 0.1
                 on_release: print("Skip music")  # Placeholder for skip action
             
-            Label:
-                text: "Music Player"
-                size_hint_y: 0.1
-                size_hint_x: 0.8
-                pos_hint: {"center_x": 0.5}
-                font_size: self.size[1] * 0.5
-
-        
 <WelcomeScreen>:
     FloatLayout:
         Label:
@@ -234,12 +233,12 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     def save_note(self):
         if self.text_input_ref:
             note_content = self.text_input_ref.text
-            with open(f'note_{self.note_id}.json', 'w', encoding="utf-8") as f:
+            with open(f'Notes/note_{self.note_id}.json', 'w', encoding="utf-8") as f:
                 json.dump({"note": note_content}, f)
 
     def load_note(self, dt=None):
         try:
-            with open(f'note_{self.note_id}.json', 'r', encoding="utf-8") as f:
+            with open(f'Notes/note_{self.note_id}.json', 'r', encoding="utf-8") as f:
                 data = json.load(f)
                 if self.text_input_ref:
                     self.text_input_ref.text = data.get("note", "")
@@ -250,7 +249,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     def delete_note(self):
         # Remove the saved note file
         try:
-            os.remove(f'note_{self.note_id}.json')
+            os.remove(f'Notes/note_{self.note_id}.json')
         except FileNotFoundError:
             pass
 
@@ -339,8 +338,6 @@ class MainApp(App):
         music_player.bind(pos=lambda instance, value: self.update_musicplayer_pos(instance.pos))
         layout.add_widget(music_player)
         self.music_player_widget = music_player  # store a reference if needed
-
-
 
     def switch_to_main_screen(self):
         """Switch to the main screen."""
