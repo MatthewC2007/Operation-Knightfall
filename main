@@ -158,36 +158,8 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             text: 'New Note'
             font_size: self.size[1] * 0.5
             size_hint: 0.13, 0.05
-            pos_hint: {"x": 0.02, "y": 0.12}
+            pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.add_new_rectangle()
-        Button:
-            text: 'Settings'
-            font_size: self.size[1] * 0.5
-            size_hint: 0.13, 0.05
-            pos_hint: {"x": 0.02, "y": 0.05}
-            on_release: app.switch_to_settings()
-        
-        
-<Settings>:
-    FloatLayout:
-        #canvas:
-            #Color:
-                #rgba: 1, 1, 1, 0.6  
-            #Rectangle:
-                #pos: self.pos
-                #size: self.size
-            
-        Label:
-            text: "Settings"
-            font_size: 32
-            size_hint: 0.13, 0.05
-            pos_hint: {"center_x": 0.5, "top": 1}
-        Button:
-            text: "Back to Main"
-            font_size: self.size[1] * 0.5
-            size_hint: 0.13, 0.05
-            pos_hint: {"x": 0.02, "y": 0.05}
-            on_release: app.switch_to_main_screen()
                 """
 
 Builder.load_string(kv)
@@ -291,7 +263,6 @@ class MainApp(App):
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
-        self.sm.add_widget(Settings(name="setting"))
         self.load_all_position() 
         return self.sm
         
