@@ -9,9 +9,11 @@ from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
 from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.progressbar import ProgressBar
-import os
+from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
+import os
 import uuid
+import glob
 Window.maximize()
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
@@ -32,7 +34,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
         Rectangle:
             pos: self.pos
             size: self.size
-
     BoxLayout:
         orientation: 'vertical'
         size: root.size
@@ -46,16 +47,13 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             size_hint_y: 0.8
             multiline: True
             on_parent: root.text_input_ref = self
-
         BoxLayout:
             size_hint_y: 0.2
             spacing: 20
-
             Button:
                 id: note_save
                 text: "Save"
                 on_release: root.save_note()
-
             Button:
                 id: note_delete
                 text: "Delete"
@@ -67,75 +65,54 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
-
+    
     canvas.before:
         Color:
             rgba: 0, 0.6, 1, 1  
         Rectangle:
             pos: self.pos
             size: self.size
-
     BoxLayout:
         orientation: 'vertical'
         size: root.size
         pos: root.pos
-        padding: 15
+        padding: 10
         spacing: 5
-        
-        # First: Blue rectangle at top
-        canvas:
-            Color:
-                rgba: 0, 0, 0.5, 1  
-            Rectangle:
-                pos: self.center_x - 110, self.center_y - 50 
-                size: 220, 200
-        
-        # Empty widget for spacing
-        Widget:
-            size_hint_y: 0.7
-
         Label:
             text: "Song name.filetype"
             size_hint_y: 0.1
             size_hint_x: 0.8
             pos_hint: {"center_x": 0.5}
-            font_size: self.size[1] * 0.6
-        
-        # Second: Progress bar below rectangle
+            font_size: self.size[1] * 0.3
         ProgressBar:
             id: progress_bar
             size_hint_y: 0.1
-            size_hint_x: 0.8
+            size_hint_x: 0.9
             pos_hint: {"center_x": 0.5}
             max: 100
-            value: 37
-        
-        # Third: Buttons at bottom
+            value: 0
         GridLayout:
             cols: 4
-            size_hint_y: 0.15
+            size_hint_y: 0.08
             padding: 10
             spacing: 5
-
             Button:
                 text: "Back"
-                size_hint_y: 0.1
-                on_release: print("Back a song")
+                size_hint_y: 0.08
+                on_release: root.play_prev()
             Button:
                 text: "Play"
-                size_hint_y: 0.1
-                on_release: print("Play music")  # Placeholder for play action
-
+                size_hint_y: 0.08
+                on_release: root.play_current()
             Button:
                 text: "Pause"
-                size_hint_y: 0.1
-                on_release: print("Pause music")  # Placeholder for pause action
-
+                size_hint_y: 0.08
+                on_release: root.sound.stop() if root.sound else None
             Button:
                 text:"Skip"
-                size_hint_y: 0.1
-                on_release: print("Skip music")  # Placeholder for skip action
-            
+                size_hint_y: 0.08
+                on_release: root.play_next()
+                
 <WelcomeScreen>:
     FloatLayout:
         Label:
@@ -150,8 +127,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             font_size: self.size[1] * 0.5
             size_hint: 0.13, 0.1
             pos_hint: {"center_x": 0.5, "center_y": 0.4}
-            on_release: app.switch_to_main_screen()
-        
+            on_release: app.switch_to_main_screen()        
 <MainScreen>:  
     FloatLayout:
         Button:
@@ -205,12 +181,14 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     def save_note(self):
         if self.text_input_ref:
             note_content = self.text_input_ref.text
-            with open(f'Notes/note_{self.note_id}.json', 'w', encoding="utf-8") as f:
+            with open(f'Notes/note_{self.note_id}.json', 'w',
+                       encoding="utf-8") as f:
                 json.dump({"note": note_content}, f)
 
     def load_note(self, dt=None):
         try:
-            with open(f'Notes/note_{self.note_id}.json', 'r', encoding="utf-8") as f:
+            with open(f'Notes/note_{self.note_id}.json', 'r',
+                       encoding="utf-8") as f:
                 data = json.load(f)
                 if self.text_input_ref:
                     self.text_input_ref.text = data.get("note", "")
@@ -237,6 +215,37 @@ class DraggableRectangle(DragBehavior, FloatLayout):
 
 class Draggablemusicplayer(DragBehavior, FloatLayout):
     dragging_widget = None
+    sound = None
+    current_file_index = 0
+    current_song = StringProperty("No song loaded")
+
+    def play_music(self, file_path):
+        if self.sound:
+            self.sound.stop()
+        self.sound = SoundLoader.load(file_path)
+        if self.sound:
+            self.sound.play()
+            self.current_song = os.path.basename(file_path)
+
+    def play_next(self):
+        app = App.get_running_app()
+        files = app.get_music_files()
+        if files:
+            self.current_file_index = (self.current_file_index + 1) % len(files)
+            self.play_music(files[self.current_file_index])
+
+    def play_prev(self):
+        app = App.get_running_app()
+        files = app.get_music_files()
+        if files:
+            self.current_file_index = (self.current_file_index - 1) % len(files)
+            self.play_music(files[self.current_file_index])
+
+    def play_current(self):
+        app = App.get_running_app()
+        files = app.get_music_files()
+        if files:
+            self.play_music(files[self.current_file_index])
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
@@ -304,9 +313,10 @@ class MainApp(App):
         pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # default position
         music_player = Draggablemusicplayer()
         music_player.size_hint = (None, None)
-        music_player.size = (320, 360)
+        music_player.size = (320, 250)
         music_player.pos = (pos["x"], pos["y"])
-        music_player.bind(pos=lambda instance, value: self.update_musicplayer_pos(instance.pos))
+        music_player.bind(pos=lambda instance,
+                           value: self.update_musicplayer_pos(instance.pos))
         layout.add_widget(music_player)
         self.music_player_widget = music_player  # store a reference if needed
 
@@ -329,7 +339,8 @@ class MainApp(App):
         new_rectangle.pos = (100, 100)
 
         self.rectangles[rect_id] = {"x": 100, "y": 100}
-        new_rectangle.bind(pos=lambda instance, value: self.update_rectangle_pos(rect_id, instance.pos))
+        new_rectangle.bind(pos=lambda instance,
+                        value: self.update_rectangle_pos(rect_id, instance.pos))
         layout.add_widget(new_rectangle)
         self.save_all_positions()
 
@@ -343,6 +354,17 @@ class MainApp(App):
         self.music_player["music_player"] = {"x": pos[0], "y": pos[1]}
         with open("music.json", "w") as f:
                 json.dump(self.music_player, f)
+
+    def get_music_files(self):
+        """Return a list of audio file paths in the Music folder."""
+        music_dir = os.path.join(os.getcwd(), "Music")
+        if not os.path.exists(music_dir):
+            os.makedirs(music_dir)
+        # You can add more extensions if needed
+        files = glob.glob(os.path.join(music_dir, "*.mp3")) + \
+                glob.glob(os.path.join(music_dir, "*.wav")) + \
+                glob.glob(os.path.join(music_dir, "*.ogg"))
+        return files
 
 if __name__ == '__main__':
     MainApp().run()
