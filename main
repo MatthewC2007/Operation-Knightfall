@@ -11,6 +11,7 @@ from kivy.properties import ObjectProperty, StringProperty
 from kivy.uix.progressbar import ProgressBar
 from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
+import random
 import os
 import uuid
 import glob
@@ -92,7 +93,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             max: 100
             value: 0
         GridLayout:
-            cols: 4
+            cols: 3
             size_hint_y: 0.08
             padding: 10
             spacing: 5
@@ -101,13 +102,10 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 size_hint_y: 0.08
                 on_release: root.play_prev()
             Button:
+                id:play pause_button
                 text: "Play"
                 size_hint_y: 0.08
-                on_release: root.play_current()
-            Button:
-                text: "Pause"
-                size_hint_y: 0.08
-                on_release: root.sound.stop() if root.sound else None
+                on_press: root.toggle_music(self)
             Button:
                 text:"Skip"
                 size_hint_y: 0.08
@@ -218,6 +216,16 @@ class Draggablemusicplayer(DragBehavior, FloatLayout):
     sound = None
     current_file_index = 0
     current_song = StringProperty("No song loaded")
+    shuffled_playlist = []  # Store shuffled playlist
+
+    def shuffle_playlist(self):
+        """Shuffle the music files and store as playlist"""
+        app = App.get_running_app()
+        files = app.get_music_files()
+        if files:
+            self.shuffled_playlist = files.copy()  # Create copy of files
+            random.shuffle(self.shuffled_playlist)  # Shuffle the copy
+            self.current_file_index = 0  # Reset index for new playlist
 
     def play_music(self, file_path):
         if self.sound:
@@ -228,24 +236,20 @@ class Draggablemusicplayer(DragBehavior, FloatLayout):
             self.current_song = os.path.basename(file_path)
 
     def play_next(self):
-        app = App.get_running_app()
-        files = app.get_music_files()
-        if files:
-            self.current_file_index = (self.current_file_index + 1) % len(files)
-            self.play_music(files[self.current_file_index])
+        if self.shuffled_playlist:
+            self.current_file_index = (self.current_file_index + 1) % len(self.shuffled_playlist)
+            self.play_music(self.shuffled_playlist[self.current_file_index])
 
     def play_prev(self):
-        app = App.get_running_app()
-        files = app.get_music_files()
-        if files:
-            self.current_file_index = (self.current_file_index - 1) % len(files)
-            self.play_music(files[self.current_file_index])
+        if self.shuffled_playlist:
+            self.current_file_index = (self.current_file_index - 1) % len(self.shuffled_playlist)
+            self.play_music(self.shuffled_playlist[self.current_file_index])
 
     def play_current(self):
-        app = App.get_running_app()
-        files = app.get_music_files()
-        if files:
-            self.play_music(files[self.current_file_index])
+        if not self.shuffled_playlist:  # If playlist empty, create it
+            self.shuffle_playlist()
+        if self.shuffled_playlist:
+            self.play_music(self.shuffled_playlist[self.current_file_index])
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
