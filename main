@@ -69,7 +69,13 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     
     canvas.before:
         Color:
-            rgba: 0, 0.6, 1, 1  
+            rgba: 0, 0.1, 0.8, 1  
+        Rectangle:
+            pos: self.x + 5, self.y - 5
+            size: self.size
+    canvas:
+        Color:
+            rgba: 0.1, 0.2, 1, 1  
         Rectangle:
             pos: self.pos
             size: self.size
@@ -211,61 +217,114 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         if self.parent:
             self.parent.remove_widget(self)
 
-class Draggablemusicplayer(DragBehavior, FloatLayout):
+class DraggableMusicPlayer(DragBehavior, FloatLayout):
     dragging_widget = None
     sound = None
     current_file_index = 0
     current_song = StringProperty("No song loaded")
-    shuffled_playlist = []  # Store shuffled playlist
+    shuffled_playlist = []
+    is_playing = False
+    paused_position = 0
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.progress_event = None
+        
+    def update_progress(self, dt):
+        """Update progress bar based on current song position"""
+        if self.sound and self.is_playing:
+            try:
+                # Get current position and length
+                current_pos = self.sound.get_pos()
+                total_length = self.sound.length
+                
+                # Calculate percentage and update progress bar
+                if total_length > 0:
+                    progress = (current_pos / total_length) * 100
+                    self.ids.progress_bar.value = progress
+                
+                # Check if song has ended
+                if current_pos >= total_length:
+                    self.play_next()
+            except:
+                pass
+
+    def play_music(self, file_path):
+        """Load and play a music file"""
+        if self.sound:
+            self.sound.stop()
+            # Cancel existing progress updates
+            if self.progress_event:
+                self.progress_event.cancel()
+                
+        self.sound = SoundLoader.load(file_path)
+        if self.sound:
+            self.paused_position = 0
+            self.sound.play()
+            self.is_playing = True
+            self.current_song = os.path.basename(file_path)
+            
+            # Start progress updates
+            self.progress_event = Clock.schedule_interval(self.update_progress, 0.1)
+            
+            if hasattr(self.ids, 'play_pause_button'):
+                self.ids.play_pause_button.text = 'Pause'
+
+    def toggle_music(self, button):
+        """Toggle between play and pause states"""
+        if not self.shuffled_playlist:
+            self.shuffle_playlist()
+            
+        if not self.sound and self.shuffled_playlist:
+            self.play_current()
+            self.is_playing = True
+            button.text = 'Pause'
+        elif self.sound:
+            if self.is_playing:
+                self.paused_position = self.sound.get_pos()
+                self.sound.stop()
+                self.is_playing = False
+                button.text = 'Play'
+                # Pause progress updates
+                if self.progress_event:
+                    self.progress_event.cancel()
+            else:
+                current_song = self.shuffled_playlist[self.current_file_index]
+                self.sound = SoundLoader.load(current_song)
+                if self.sound:
+                    if self.paused_position:
+                        self.sound.seek(self.paused_position)
+                    self.sound.play()
+                    self.is_playing = True
+                    button.text = 'Pause'
+                    # Resume progress updates
+                    self.progress_event = Clock.schedule_interval(self.update_progress, 0.1)
 
     def shuffle_playlist(self):
         """Shuffle the music files and store as playlist"""
         app = App.get_running_app()
         files = app.get_music_files()
         if files:
-            self.shuffled_playlist = files.copy()  # Create copy of files
-            random.shuffle(self.shuffled_playlist)  # Shuffle the copy
-            self.current_file_index = 0  # Reset index for new playlist
-
-    def play_music(self, file_path):
-        if self.sound:
-            self.sound.stop()
-        self.sound = SoundLoader.load(file_path)
-        if self.sound:
-            self.sound.play()
-            self.current_song = os.path.basename(file_path)
+            self.shuffled_playlist = files.copy()
+            random.shuffle(self.shuffled_playlist)
+            self.current_file_index = 0
 
     def play_next(self):
+        """Play next song in shuffled playlist"""
         if self.shuffled_playlist:
             self.current_file_index = (self.current_file_index + 1) % len(self.shuffled_playlist)
             self.play_music(self.shuffled_playlist[self.current_file_index])
 
     def play_prev(self):
+        """Play previous song in shuffled playlist"""
         if self.shuffled_playlist:
             self.current_file_index = (self.current_file_index - 1) % len(self.shuffled_playlist)
             self.play_music(self.shuffled_playlist[self.current_file_index])
 
     def play_current(self):
-        if not self.shuffled_playlist:  # If playlist empty, create it
-            self.shuffle_playlist()
+        """Play current song in playlist"""
         if self.shuffled_playlist:
             self.play_music(self.shuffled_playlist[self.current_file_index])
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            Draggablemusicplayer.dragging_widget = self
-            # Bring this widget to front by removing and re-adding it
-            if self.parent:
-                parent = self.parent
-                parent.remove_widget(self)
-                parent.add_widget(self)
-            return super().on_touch_down(touch)
-        return super().on_touch_down(touch)
-
-    def on_touch_up(self, touch):
-        if Draggablemusicplayer.dragging_widget is self:
-            Draggablemusicplayer.dragging_widget = None
-        return super().on_touch_up(touch)
 
 class MainApp(App):
     def build(self):
@@ -315,7 +374,7 @@ class MainApp(App):
 
         # Load persistent music player
         pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # default position
-        music_player = Draggablemusicplayer()
+        music_player = DraggableMusicPlayer()
         music_player.size_hint = (None, None)
         music_player.size = (320, 250)
         music_player.pos = (pos["x"], pos["y"])
