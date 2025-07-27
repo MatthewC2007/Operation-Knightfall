@@ -31,7 +31,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             size: self.size
     canvas:
         Color:
-            rgba: 1, 1, 0.5, 1  
+            rgba: 0.996, 1.0, 0.408, 1
         Rectangle:
             pos: self.pos
             size: self.size
@@ -59,6 +59,31 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 id: note_delete
                 text: "Delete"
                 on_release: root.delete_note()
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: 0.1
+            size_hint_x: 0.1
+            padding: 10
+            spacing: 50
+            Button:
+                background_normal: ''
+                background_color: 1.0, 0.757, 0.29, 1  
+            Button:
+                background_normal: ''
+                background_color: 0.996, 1.0, 0.408, 1
+                
+            Button:
+                background_normal: ''
+                background_color: 1.0, 0.443, 0.808, 1
+            
+            Button:
+                background_normal: ''
+                background_color:  0.729, 0.247, 1.0, 1
+            Button:
+                background_normal: ''
+                background_color:  0.463, 0.753, 0.839, 1
+       
+                
 
 <Draggablemusicplayer@DragBehavior+FloatLayout>:
     size_hint: None, None
@@ -70,13 +95,13 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     canvas.before:
         Color:
             rgba: 0, 0.1, 0.8, 1  
-        Rectangle:
+        RoundedRectangle:
             pos: self.x + 5, self.y - 5
             size: self.size
     canvas:
         Color:
             rgba: 0.1, 0.2, 1, 1  
-        Rectangle:
+        RoundedRectangle:
             pos: self.pos
             size: self.size
     BoxLayout:
@@ -366,7 +391,7 @@ class MainApp(App):
         for rect_id, pos in self.rectangles.items():
             new_rectangle = DraggableRectangle(note_id=rect_id)
             new_rectangle.size_hint = (None, None)
-            new_rectangle.size = (250, 300)  # default size
+            new_rectangle.size = (250, 320)  # default size
             new_rectangle.pos = (pos["x"], pos["y"])
             new_rectangle.bind(pos=lambda instance,
                 value: self.update_rectangle_pos(rect_id, instance.pos))
