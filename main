@@ -7,7 +7,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
 from kivy.config import Config
 from kivy.uix.floatlayout import FloatLayout
-from kivy.properties import ObjectProperty, StringProperty
+from kivy.properties import ObjectProperty, StringProperty, ListProperty
 from kivy.uix.progressbar import ProgressBar
 from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
@@ -18,7 +18,7 @@ import glob
 Window.maximize()
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
-    size: 250, 300
+    size: 250, 320
     drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
@@ -31,7 +31,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             size: self.size
     canvas:
         Color:
-            rgba: 0.996, 1.0, 0.408, 1
+            rgba: root.note_color
         Rectangle:
             pos: self.pos
             size: self.size
@@ -61,29 +61,39 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 on_release: root.delete_note()
         BoxLayout:
             orientation: 'horizontal'
-            size_hint_y: 0.1
-            size_hint_x: 0.1
-            padding: 10
-            spacing: 50
-            Button:
-                background_normal: ''
-                background_color: 1.0, 0.757, 0.29, 1  
+            spacing: 10
+            size_hint_y: 0.15
+            pos_hint: {"center_x": 0.5}
             Button:
                 background_normal: ''
                 background_color: 0.996, 1.0, 0.408, 1
-                
+                size_hint: None, None
+                size: 40, 40
+                on_release: root.change_note_color(self.background_color)
+            Button:
+                background_normal: ''
+                background_color: 1.0, 0.757, 0.29, 1
+                size_hint: None, None
+                size: 40, 40
+                on_release: root.change_note_color(self.background_color)
             Button:
                 background_normal: ''
                 background_color: 1.0, 0.443, 0.808, 1
-            
+                size_hint: None, None
+                size: 40, 40
+                on_release: root.change_note_color(self.background_color)
             Button:
                 background_normal: ''
                 background_color:  0.729, 0.247, 1.0, 1
+                size_hint: None, None
+                size: 40, 40
+                on_release: root.change_note_color(self.background_color)
             Button:
                 background_normal: ''
                 background_color:  0.463, 0.753, 0.839, 1
-       
-                
+                size_hint: None, None
+                size: 40, 40
+                on_release: root.change_note_color(self.background_color)
 
 <Draggablemusicplayer@DragBehavior+FloatLayout>:
     size_hint: None, None
@@ -180,6 +190,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     dragging_widget = None
     text_input_ref = ObjectProperty(None)
     note_id = StringProperty("note_temp")
+    note_color = ListProperty([0.996, 1.0, 0.408, 1])
 
     def __init__(self, note_id="note_temp", **kwargs):
         super().__init__(**kwargs)
@@ -205,25 +216,46 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     def on_touch_up(self, touch):
         if DraggableRectangle.dragging_widget is self:
             DraggableRectangle.dragging_widget = None
+            # Save position after drag
+            app = App.get_running_app()
+            app.rectangles[self.note_id] = {
+                "x": self.x,
+                "y": self.y,
+                "width": self.width,
+                "height": self.height
+            }
+            app.save_all_positions()
         return super().on_touch_up(touch)
 
     def save_note(self):
+        note_path = f'Notes/note_{self.note_id}.json'
+        data = {}
+        # Load existing data if present
+        if os.path.exists(note_path):
+            with open(note_path, "r", encoding="utf-8") as f:
+                try:
+                    data = json.load(f)
+                except Exception:
+                    data = {}
+        # Update both note and color
         if self.text_input_ref:
-            note_content = self.text_input_ref.text
-            with open(f'Notes/note_{self.note_id}.json', 'w',
-                       encoding="utf-8") as f:
-                json.dump({"note": note_content}, f)
+            data["note"] = self.text_input_ref.text
+        data["color"] = self.note_color
+        with open(note_path, "w", encoding="utf-8") as f:
+            json.dump(data, f)
 
     def load_note(self, dt=None):
+        note_path = f'Notes/note_{self.note_id}.json'
         try:
-            with open(f'Notes/note_{self.note_id}.json', 'r',
-                       encoding="utf-8") as f:
+            with open(note_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if self.text_input_ref:
                     self.text_input_ref.text = data.get("note", "")
+                self.note_color = data.get("color", [0.996, 1.0, 0.408, 1])
         except FileNotFoundError:
             if self.text_input_ref:
                 self.text_input_ref.text = ""
+            self.note_color = [0.996, 1.0, 0.408, 1]
 
     def delete_note(self):
         # Remove the saved note file
@@ -241,6 +273,24 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         # Remove the widget from the screen
         if self.parent:
             self.parent.remove_widget(self)
+
+    def change_note_color(self, color):
+        self.note_color = list(color)  # Ensure it's a list, not a kivy object
+        self.save_note_color(color)
+
+    def save_note_color(self, color):
+        note_path = f'Notes/note_{self.note_id}.json'
+        # Load existing note data if present
+        data = {}
+        if os.path.exists(note_path):
+            with open(note_path, "r") as f:
+                try:
+                    data = json.load(f)
+                except Exception:
+                    data = {}
+        data["color"] = list(color)
+        with open(note_path, "w") as f:
+            json.dump(data, f)
 
 class DraggableMusicPlayer(DragBehavior, FloatLayout):
     dragging_widget = None
@@ -391,7 +441,10 @@ class MainApp(App):
         for rect_id, pos in self.rectangles.items():
             new_rectangle = DraggableRectangle(note_id=rect_id)
             new_rectangle.size_hint = (None, None)
-            new_rectangle.size = (250, 320)  # default size
+            # Use saved size if available, else default
+            width = pos.get("width", 250)
+            height = pos.get("height", 320)
+            new_rectangle.size = (width, height)
             new_rectangle.pos = (pos["x"], pos["y"])
             new_rectangle.bind(pos=lambda instance,
                 value: self.update_rectangle_pos(rect_id, instance.pos))
