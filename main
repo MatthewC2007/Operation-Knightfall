@@ -1,4 +1,7 @@
 import json
+import os
+import uuid
+import glob
 from kivy.uix.widget import Widget
 from kivy.app import App
 from kivy.uix.behaviors import DragBehavior
@@ -12,10 +15,9 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
 import random
-import os
-import uuid
-import glob
-Window.maximize()
+
+Window.maximize() # Start the app maximised
+
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
     size: 250, 320
@@ -47,6 +49,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             hint_text: "Type your note here..."
             size_hint_y: 0.8
             multiline: True
+            scroll_y: 1
             on_parent: root.text_input_ref = self
         BoxLayout:
             size_hint_y: 0.2
@@ -61,6 +64,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 on_release: root.delete_note()
         BoxLayout:
             orientation: 'horizontal'
+            padding: -5
             spacing: 10
             size_hint_y: 0.15
             pos_hint: {"center_x": 0.5}
@@ -101,7 +105,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     drag_timeout: 100000000
     drag_distance: 0
     drag_rectangle: self.x, self.y, self.width, self.height
-    
+    current_song: "No song loaded"
     canvas.before:
         Color:
             rgba: 0, 0.1, 0.8, 1  
@@ -121,18 +125,19 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
         padding: 10
         spacing: 5
         Label:
-            text: "Song name.filetype"
+            id: song_label
+            text: root.current_song
             size_hint_y: 0.1
             size_hint_x: 0.8
             pos_hint: {"center_x": 0.5}
-            font_size: self.size[1] * 0.3
+            font_size: self.size[1] * 0.25
         ProgressBar:
             id: progress_bar
             size_hint_y: 0.1
             size_hint_x: 0.9
             pos_hint: {"center_x": 0.5}
             max: 100
-            value: 0
+            value:0
         GridLayout:
             cols: 3
             size_hint_y: 0.08
@@ -187,6 +192,12 @@ class Settings(Screen):
     pass
 
 class DraggableRectangle(DragBehavior, FloatLayout):
+    """
+    Represents a draggable note widget.
+    Allows users to move, edit, and colour notes.
+    Each note has a unique ID and saves its position, size, text, and colour.
+    """
+    
     dragging_widget = None
     text_input_ref = ObjectProperty(None)
     note_id = StringProperty("note_temp")
@@ -300,6 +311,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
     shuffled_playlist = []
     is_playing = False
     paused_position = 0
+    current_song = StringProperty("No song loaded")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -312,35 +324,36 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
                 # Get current position and length
                 current_pos = self.sound.get_pos()
                 total_length = self.sound.length
-                
-                # Calculate percentage and update progress bar
+                print("Current position:", current_pos, "Total length:", total_length)
                 if total_length > 0:
                     progress = (current_pos / total_length) * 100
                     self.ids.progress_bar.value = progress
-                
+                else:
+                    self.ids.progress_bar.value = 0
                 # Check if song has ended
                 if current_pos >= total_length:
                     self.play_next()
             except:
-                pass
+                self.ids.progress_bar.value = 0
 
-    def play_music(self, file_path):
-        """Load and play a music file"""
+    def play_music(self,song_path):
+        """
+        Loads and plays the selected song, updating the displayed song name.
+        """
         if self.sound:
             self.sound.stop()
             # Cancel existing progress updates
             if self.progress_event:
                 self.progress_event.cancel()
-                
-        self.sound = SoundLoader.load(file_path)
+        self.sound = SoundLoader.load(song_path)
         if self.sound:
-            self.paused_position = 0
             self.sound.play()
+            self.current_song = os.path.basename(song_path)  # Update label with song name
             self.is_playing = True
-            self.current_song = os.path.basename(file_path)
-            
-            # Start progress updates
-            self.progress_event = Clock.schedule_interval(self.update_progress, 0.1)
+            self.progress_event = Clock.schedule_interval(self.update_progress, 1)
+        else:
+            self.current_song = "Error loading song"
+            self.is_playing = False
             
             if hasattr(self.ids, 'play_pause_button'):
                 self.ids.play_pause_button.text = 'Pause'
