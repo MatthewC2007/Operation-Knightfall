@@ -27,7 +27,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
 
     canvas.before:
         Color:
-            rgba: 0.6, 0.5, 0.1, 0.8 
+            rgba: 0.3, 0.3, 0.3, 0.8 
         Rectangle:
             pos: self.x + 3, self.y - 3
             size: self.size
@@ -108,7 +108,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
     current_song: "No song loaded"
     canvas.before:
         Color:
-            rgba: 0, 0.1, 0.8, 1  
+            rgba: 0, 0.1, 0.8, 0.8
         RoundedRectangle:
             pos: self.x + 5, self.y - 5
             size: self.size
@@ -317,6 +317,19 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         super().__init__(**kwargs)
         self.progress_event = None
         
+    def on_touch_down(self, touch): 
+        if self.collide_point(*touch.pos):
+            for child in self.children:
+                if child.collide_point(*touch.pos):
+                    DraggableMusicPlayer.dragging_widget = self
+                    # Bring this widget to front by removing and re-adding it
+                    if self.parent:
+                        parent = self.parent
+                        parent.remove_widget(self)
+                        parent.add_widget(self)
+                    return super().on_touch_down(touch)
+        return super().on_touch_down(touch)
+    
     def update_progress(self, dt):
         """Update progress bar based on current song position"""
         if self.sound and self.is_playing:
