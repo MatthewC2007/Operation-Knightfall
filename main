@@ -16,6 +16,14 @@ from kivy.core.audio import SoundLoader
 from kivy.clock import Clock
 import random
 
+"""This is a simple note-taking and music player app built with Kivy that 
+allows users to create draggable notes (inspired by people who decorate their 
+walls with sticky notes with all their thoughts, plans, upcoming events, and for
+all those highschool and uni students keeping notes for exams), 
+save them, and play (royalty free, but not sellable (under copyright)) music 
+with a draggable music player that half works from a folder that you can't 
+access from the app."""
+
 Window.maximize() # Start the app maximised
 
 kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
@@ -98,7 +106,6 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 size_hint: None, None
                 size: 40, 40
                 on_release: root.change_note_color(self.background_color)
-
 <Draggablemusicplayer@DragBehavior+FloatLayout>:
     size_hint: None, None
     size: 320, 360
@@ -156,22 +163,38 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
                 text:"Skip"
                 size_hint_y: 0.08
                 on_release: root.play_next()
-                
 <WelcomeScreen>:
     FloatLayout:
-        Label:
-            text: "Welcome to the App"
-            font_size: self.size[1] * 0.5
+        Button:
+            text: "Hey there, note-taker!"
+            font_size: self.size[1] * 0.6
             size_hint: None, None
             size: 100, 100
             pos_hint: {"center_x": 0.5, "center_y": 0.6}
+            background_normal: ''
+            background_color: 0, 0, 0, 1
+            on_release: app.switch_to_secret()
+        Label:
+            text: "Big plans? Random thoughts? Let’s jot it all down."
+            font_size: self.size[1] * 0.4
+            size_hint: None, None
+            size: 300, 50
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
         Button:
-            background_color: "cyan"
+            background_normal: ''
+            background_color: 0.341, 0.514, 0.859, 1
             text: "Enter"
             font_size: self.size[1] * 0.5
             size_hint: 0.13, 0.1
-            pos_hint: {"center_x": 0.5, "center_y": 0.4}
-            on_release: app.switch_to_main_screen()        
+            pos_hint: {"center_x": 0.5, "center_y": 0.35}
+            on_release: app.switch_to_main_screen()
+        Label:
+            text: "If you want to quit, just tap the X in the top right corner."
+            font_size: self.size[1] * 0.4
+            size_hint: None, None
+            size: 200, 30
+            pos_hint: {"center_x": 0.91, "center_y": 0.96}
+
 <MainScreen>:  
     FloatLayout:
         Button:
@@ -180,8 +203,10 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             size_hint: 0.13, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
             on_release: app.add_new_rectangle()
-                """
+               
+<Secret>:
 
+ """
 Builder.load_string(kv)
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
 class WelcomeScreen(Screen):
@@ -190,7 +215,9 @@ class MainScreen(Screen):
     pass
 class Settings(Screen):
     pass
-
+class Secret(Screen):
+    pass
+    
 class DraggableRectangle(DragBehavior, FloatLayout):
     """
     Represents a draggable note widget.
@@ -198,20 +225,28 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     Each note has a unique ID and saves its position, size, text, and colour.
     """
     
-    dragging_widget = None
+    dragging_widget = None # Tracks which note is currently being dragged
     text_input_ref = ObjectProperty(None)
     note_id = StringProperty("note_temp")
     note_color = ListProperty([0.996, 1.0, 0.408, 1])
 
     def __init__(self, note_id="note_temp", **kwargs):
+        """
+        Initialise the note with a unique ID and default size.
+        Loads saved note data after creation.
+        """
         super().__init__(**kwargs)
         self.note_id = note_id
         self.size_hint = (None, None)
         self.size = (250, 300)
-        
-        Clock.schedule_once(self.load_note, 0.1) 
+        Clock.schedule_once(self.load_note, 0.1) # Load note data after widget is created
 
     def on_touch_down(self, touch): 
+        """ 
+        Handle touch down events to start dragging the note.
+        If the touch is within the note's area, it will start dragging, and bring
+        it to the front.
+        """
         if self.collide_point(*touch.pos):
             for child in self.children:
                 if child.collide_point(*touch.pos):
@@ -225,9 +260,13 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         return super().on_touch_down(touch)
 
     def on_touch_up(self, touch):
+        """
+        Handle touch up events to stop dragging the note.
+        If the note is being dragged, it will save its position and size.
+        """
         if DraggableRectangle.dragging_widget is self:
             DraggableRectangle.dragging_widget = None
-            # Save position after drag
+            # Save position and size after drag
             app = App.get_running_app()
             app.rectangles[self.note_id] = {
                 "x": self.x,
@@ -239,6 +278,9 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         return super().on_touch_up(touch)
 
     def save_note(self):
+        """
+        Save the note text and color to a JSON file.
+        """
         note_path = f'Notes/note_{self.note_id}.json'
         data = {}
         # Load existing data if present
@@ -256,6 +298,10 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             json.dump(data, f)
 
     def load_note(self, dt=None):
+        """
+        Load the note text and color from a JSON file.
+        If the file does not exist, it sets default values.
+        """
         note_path = f'Notes/note_{self.note_id}.json'
         try:
             with open(note_path, "r", encoding="utf-8") as f:
@@ -269,7 +315,10 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             self.note_color = [0.996, 1.0, 0.408, 1]
 
     def delete_note(self):
-        # Remove the saved note file
+        """
+        Delete the note by removing its JSON file and removes widget from screen.
+        Also updates the app's rectangle tracking to remove this note.
+        """
         try:
             os.remove(f'Notes/note_{self.note_id}.json')
         except FileNotFoundError:
@@ -304,6 +353,11 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             json.dump(data, f)
 
 class DraggableMusicPlayer(DragBehavior, FloatLayout):
+   
+    """Represents a draggable music player widget.
+    Allows users to play, pause, and skip songs from a shuffled playlist.
+    """
+
     dragging_widget = None
     sound = None
     current_file_index = 0
@@ -436,6 +490,7 @@ class MainApp(App):
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
+        self.sm.add_widget(Secret(name="secret"))
         self.load_all_position() 
         return self.sm
         
@@ -491,9 +546,8 @@ class MainApp(App):
         """Switch to the main screen."""
         self.sm.current = "main"
 
-    def switch_to_settings(self):
-        """Switch to the settings screen."""
-        self.sm.current = "setting"
+    def switch_to_secret(self):
+        self.sm.current = "secret"
 
     def add_new_rectangle(self):
         main_screen = self.sm.get_screen("main")
