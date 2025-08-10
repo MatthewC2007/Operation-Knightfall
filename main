@@ -189,6 +189,13 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             pos_hint: {"center_x": 0.5, "center_y": 0.35}
             on_release: app.switch_to_main_screen()
         Label:
+            text: "Please do NOT save any sensitive information here, as this app is not secure."
+            color: 1, 0, 0, 1
+            font_size: self.size[1] * 0.5
+            size_hint: None, None
+            size: 300, 30
+            pos_hint: {"center_x": 0.5, "center_y": 0.9}
+        Label:
             text: "If you want to quit, just tap the X in the top right corner."
             font_size: self.size[1] * 0.4
             size_hint: None, None
@@ -220,8 +227,7 @@ class Secret(Screen):
     
 class DraggableRectangle(DragBehavior, FloatLayout):
     """
-    Represents a draggable note widget.
-    Allows users to move, edit, and colour notes.
+    A draggable note widget. Allows users to move, edit, and colour notes.
     Each note has a unique ID and saves its position, size, text, and colour.
     """
     
@@ -353,11 +359,10 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             json.dump(data, f)
 
 class DraggableMusicPlayer(DragBehavior, FloatLayout):
-   
-    """Represents a draggable music player widget.
-    Allows users to play, pause, and skip songs from a shuffled playlist.
     """
-
+    A draggable music player widget. Allows users to play, pause, and skip songs
+    from a shuffled playlist.
+    """
     dragging_widget = None
     sound = None
     current_file_index = 0
@@ -365,8 +370,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
     shuffled_playlist = []
     is_playing = False
     paused_position = 0
-    current_song = StringProperty("No song loaded")
-
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.progress_event = None
@@ -388,7 +392,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         """Update progress bar based on current song position"""
         if self.sound and self.is_playing:
             try:
-                # Get current position and length
+                # Get current position and length (doesn't work for mp3 files)
                 current_pos = self.sound.get_pos()
                 total_length = self.sound.length
                 print("Current position:", current_pos, "Total length:", total_length)
@@ -416,10 +420,12 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         if self.sound:
             self.sound.play()
             self.current_song = os.path.basename(song_path)  # Update label with song name
+            print("Playing song:", self.current_song)
             self.is_playing = True
             self.progress_event = Clock.schedule_interval(self.update_progress, 1)
         else:
             self.current_song = "Error loading song"
+            print("Error loading song:", song_path)
             self.is_playing = False
             
             if hasattr(self.ids, 'play_pause_button'):
