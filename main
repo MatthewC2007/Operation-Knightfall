@@ -1,32 +1,49 @@
+"""Sticky note + music player (Kivy).
+
+A lightweight, insecure (do not store sensitive data) desktop scratchboard:
+- Create, drag, recolor, save, and delete sticky notes (each persisted as JSON).
+- Drag a simple music player that shuffles royalty‑free tracks from the local Music/ folder.
+- Remembers widget positions between runs.
+
+Limitations:
+- No auth / encryption.
+- Music folder not browsable from the UI (drop files in manually).
+- Basic error handling only.
+
+Future ideas (optional):
+- Add file picker for music.
+- Search / tag notes.
+- Export / import notes.
+- Dark / light theme toggle.
+"""
+
 import json
 import os
 import uuid
 import glob
-from kivy.uix.widget import Widget
-from kivy.app import App
-from kivy.uix.behaviors import DragBehavior
-from kivy.lang import Builder
-from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.core.window import Window
-from kivy.config import Config
-from kivy.uix.floatlayout import FloatLayout
-from kivy.properties import ObjectProperty, StringProperty, ListProperty
-from kivy.uix.progressbar import ProgressBar
-from kivy.core.audio import SoundLoader
-from kivy.clock import Clock
 import random
+import logging
 
-"""This is a simple note-taking and music player app built with Kivy that 
-allows users to create draggable notes (inspired by people who decorate their 
-walls with sticky notes with all their thoughts, plans, upcoming events, and for
-all those highschool and uni students keeping notes for exams), 
-save them, and play (royalty free, but not sellable (under copyright)) music 
-with a draggable music player that half works from a folder that you can't 
-access from the app."""
+from kivy.app import App
+from kivy.lang import Builder
+from kivy.config import Config
+from kivy.clock import Clock
+from kivy.core.audio import SoundLoader
+from kivy.core.window import Window
+from kivy.properties import ObjectProperty, StringProperty, ListProperty
+from kivy.uix.behaviors import DragBehavior
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.progressbar import ProgressBar
 
-Window.maximize() # Start the app maximised
+# Logging configuration (PEP8: module-level constants / setup near top)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
+DEFAULT_NOTE_COLOR = [0.996, 1.0, 0.408, 1]
+
+kv = """
+<DraggableRectangle@DragBehavior+FloatLayout>:
     size_hint: None, None
     size: 250, 320
     drag_timeout: 100000000
@@ -178,7 +195,7 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             text: "Big plans? Random thoughts? Let’s jot it all down."
             font_size: self.size[1] * 0.4
             size_hint: None, None
-            size: 300, 50
+            size: 300, 100
             pos_hint: {"center_x": 0.5, "center_y": 0.5}
         Button:
             background_normal: ''
@@ -212,52 +229,77 @@ kv="""<DraggableRectangle@DragBehavior+FloatLayout>:
             on_release: app.add_new_rectangle()
                
 <Secret>:
-
+    FloatLayout:
+        Image:
+            source: 'staring-avatar-guy-meme-template-full-439b18bc.png'
+            allow_stretch: True
+            keep_ratio: False
+    FloatLayout:
+        Button:
+            text: "Back"
+            font_size: self.size[1] * 0.5
+            size_hint: 0.05, 0.05
+            pos_hint: {"x": 0.02, "y": 0.05}
+            on_release: app.switch_to_main_screen()
  """
 Builder.load_string(kv)
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
+Window.maximize()  # Start the app maximised
+
+
 class WelcomeScreen(Screen):
+    """Welcome / landing screen."""
     pass
+
+
 class MainScreen(Screen):
+    """Primary screen holding notes and music player."""
     pass
+
+
 class Settings(Screen):
+    """(Placeholder) settings screen."""
     pass
+
+
 class Secret(Screen):
     pass
-    
+
 class DraggableRectangle(DragBehavior, FloatLayout):
     """
     A draggable note widget. Allows users to move, edit, and colour notes.
     Each note has a unique ID and saves its position, size, text, and colour.
     """
-    
-    dragging_widget = None # Tracks which note is currently being dragged
+    dragging_widget = None  # Tracks which note is currently being dragged
     text_input_ref = ObjectProperty(None)
     note_id = StringProperty("note_temp")
-    note_color = ListProperty([0.996, 1.0, 0.408, 1])
+    note_color = ListProperty(DEFAULT_NOTE_COLOR)
 
     def __init__(self, note_id="note_temp", **kwargs):
-        """
-        Initialise the note with a unique ID and default size.
-        Loads saved note data after creation.
-        """
         super().__init__(**kwargs)
         self.note_id = note_id
         self.size_hint = (None, None)
         self.size = (250, 300)
-        Clock.schedule_once(self.load_note, 0.1) # Load note data after widget is created
+        Clock.schedule_once(self.load_note, 0.1)
+        Clock.schedule_once(lambda dt: self.clamp_to_window(), 0.2)
+        Window.bind(size=self._on_window_resize)
 
-    def on_touch_down(self, touch): 
-        """ 
-        Handle touch down events to start dragging the note.
-        If the touch is within the note's area, it will start dragging, and bring
-        it to the front.
-        """
+    def _on_window_resize(self, *args):
+        self.clamp_to_window()
+
+    def clamp_to_window(self):
+        """Keep the note fully inside the window."""
+        w, h = Window.size
+        new_x = min(max(self.x, 0), max(0, w - self.width))
+        new_y = min(max(self.y, 0), max(0, h - self.height))
+        if (new_x, new_y) != (self.x, self.y):
+            self.pos = (new_x, new_y)
+
+    def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             for child in self.children:
                 if child.collide_point(*touch.pos):
                     DraggableRectangle.dragging_widget = self
-                    # Bring this widget to front by removing and re-adding it
                     if self.parent:
                         parent = self.parent
                         parent.remove_widget(self)
@@ -265,14 +307,16 @@ class DraggableRectangle(DragBehavior, FloatLayout):
                     return super().on_touch_down(touch)
         return super().on_touch_down(touch)
 
+    def on_touch_move(self, touch):
+        result = super().on_touch_move(touch)
+        if DraggableRectangle.dragging_widget is self:
+            self.clamp_to_window()
+        return result
+
     def on_touch_up(self, touch):
-        """
-        Handle touch up events to stop dragging the note.
-        If the note is being dragged, it will save its position and size.
-        """
         if DraggableRectangle.dragging_widget is self:
             DraggableRectangle.dragging_widget = None
-            # Save position and size after drag
+            self.clamp_to_window()
             app = App.get_running_app()
             app.rectangles[self.note_id] = {
                 "x": self.x,
@@ -314,11 +358,11 @@ class DraggableRectangle(DragBehavior, FloatLayout):
                 data = json.load(f)
                 if self.text_input_ref:
                     self.text_input_ref.text = data.get("note", "")
-                self.note_color = data.get("color", [0.996, 1.0, 0.408, 1])
+                self.note_color = data.get("color", DEFAULT_NOTE_COLOR)
         except FileNotFoundError:
             if self.text_input_ref:
                 self.text_input_ref.text = ""
-            self.note_color = [0.996, 1.0, 0.408, 1]
+            self.note_color = DEFAULT_NOTE_COLOR.copy()
 
     def delete_note(self):
         """
@@ -341,10 +385,12 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             self.parent.remove_widget(self)
 
     def change_note_color(self, color):
+        """Change the color of the note."""
         self.note_color = list(color)  # Ensure it's a list, not a kivy object
         self.save_note_color(color)
 
     def save_note_color(self, color):
+        """Save the note color to a JSON file."""
         note_path = f'Notes/note_{self.note_id}.json'
         # Load existing note data if present
         data = {}
@@ -370,62 +416,94 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
     shuffled_playlist = []
     is_playing = False
     paused_position = 0
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.progress_event = None
-        
-    def on_touch_down(self, touch): 
+        self._replacing_track = False
+        Clock.schedule_once(lambda dt: self.clamp_to_window(), 0.1)
+        Window.bind(size=self._on_window_resize)
+
+    def _on_window_resize(self, *args):
+        self.clamp_to_window()
+
+    def clamp_to_window(self):
+        """Keep the player fully inside the window."""
+        w, h = Window.size
+        new_x = min(max(self.x, 0), max(0, w - self.width))
+        new_y = min(max(self.y, 0), max(0, h - self.height))
+        if (new_x, new_y) != (self.x, self.y):
+            self.pos = (new_x, new_y)
+
+    def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             for child in self.children:
                 if child.collide_point(*touch.pos):
                     DraggableMusicPlayer.dragging_widget = self
-                    # Bring this widget to front by removing and re-adding it
                     if self.parent:
                         parent = self.parent
                         parent.remove_widget(self)
                         parent.add_widget(self)
                     return super().on_touch_down(touch)
         return super().on_touch_down(touch)
-    
+
+    def on_touch_move(self, touch):
+        result = super().on_touch_move(touch)
+        if DraggableMusicPlayer.dragging_widget is self:
+            self.clamp_to_window()
+        return result
+
+    def on_touch_up(self, touch):
+        if DraggableMusicPlayer.dragging_widget is self:
+            DraggableMusicPlayer.dragging_widget = None
+            self.clamp_to_window()
+        return super().on_touch_up(touch)
+
     def update_progress(self, dt):
-        """Update progress bar based on current song position"""
+        """Update progress bar based on current song position."""
         if self.sound and self.is_playing:
             try:
-                # Get current position and length (doesn't work for mp3 files)
                 current_pos = self.sound.get_pos()
                 total_length = self.sound.length
-                print("Current position:", current_pos, "Total length:", total_length)
                 if total_length > 0:
-                    progress = (current_pos / total_length) * 100
-                    self.ids.progress_bar.value = progress
+                    self.ids.progress_bar.value = (current_pos / total_length) * 100
                 else:
                     self.ids.progress_bar.value = 0
-                # Check if song has ended
-                if current_pos >= total_length:
+                if total_length > 0 and current_pos >= total_length:
                     self.play_next()
-            except:
+            except Exception as exc:
+                logger.debug("Progress update failed: %s", exc)
                 self.ids.progress_bar.value = 0
 
     def play_music(self,song_path):
         """
         Loads and plays the selected song, updating the displayed song name.
         """
+        # If an existing sound is playing, stop it without triggering auto-next
         if self.sound:
+            self._replacing_track = True
+            self.is_playing = False  # prevent auto-next on old sound stop
+            try:
+                self.sound.unbind(on_stop=self._on_sound_stop)
+            except Exception:
+                pass
             self.sound.stop()
-            # Cancel existing progress updates
+            self._replacing_track = False
             if self.progress_event:
                 self.progress_event.cancel()
+
         self.sound = SoundLoader.load(song_path)
         if self.sound:
+            self.sound.bind(on_stop=self._on_sound_stop)
             self.sound.play()
-            self.current_song = os.path.basename(song_path)  # Update label with song name
-            print("Playing song:", self.current_song)
+            self.current_song = os.path.basename(song_path)
+            logger.info("Playing song: %s", self.current_song)
             self.is_playing = True
-            self.progress_event = Clock.schedule_interval(self.update_progress, 1)
+            # smoother progress & quicker end detection
+            self.progress_event = Clock.schedule_interval(self.update_progress, 0.1)
         else:
             self.current_song = "Error loading song"
-            print("Error loading song:", song_path)
+            logger.error("Error loading song: %s", song_path)
             self.is_playing = False
             
             if hasattr(self.ids, 'play_pause_button'):
@@ -435,30 +513,32 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         """Toggle between play and pause states"""
         if not self.shuffled_playlist:
             self.shuffle_playlist()
-            
+
         if not self.sound and self.shuffled_playlist:
             self.play_current()
-            self.is_playing = True
             button.text = 'Pause'
         elif self.sound:
             if self.is_playing:
-                self.paused_position = self.sound.get_pos()
-                self.sound.stop()
+                # mark paused before stopping so on_stop won't advance
                 self.is_playing = False
+                try:
+                    self.sound.unbind(on_stop=self._on_sound_stop)
+                except Exception:
+                    pass
+                self.sound.stop()
                 button.text = 'Play'
-                # Pause progress updates
                 if self.progress_event:
                     self.progress_event.cancel()
             else:
                 current_song = self.shuffled_playlist[self.current_file_index]
                 self.sound = SoundLoader.load(current_song)
                 if self.sound:
+                    self.sound.bind(on_stop=self._on_sound_stop)
                     if self.paused_position:
                         self.sound.seek(self.paused_position)
                     self.sound.play()
                     self.is_playing = True
                     button.text = 'Pause'
-                    # Resume progress updates
                     self.progress_event = Clock.schedule_interval(self.update_progress, 0.1)
 
     def shuffle_playlist(self):
@@ -487,7 +567,15 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         if self.shuffled_playlist:
             self.play_music(self.shuffled_playlist[self.current_file_index])
 
+    def _on_sound_stop(self, *args):
+        """Handle the sound stop event."""
+        if not self.is_playing:  # paused or intentionally stopped
+            return
+        # Natural end -> next track
+        Clock.schedule_once(lambda dt: self.play_next(), 0)
+
 class MainApp(App):
+    """Main application class for the note-taking and music player app."""
     def build(self):
         """Build the app."""
         self.rectangles = {}
@@ -497,18 +585,19 @@ class MainApp(App):
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
         self.sm.add_widget(Secret(name="secret"))
-        self.load_all_position() 
+        self.load_all_positions() 
         return self.sm
         
     def save_all_positions(self):
-
+        """Save all rectangle and music player positions."""
         with open("rectangles.json", "w") as f:
             json.dump(self.rectangles, f)
 
         with open("music.json", "w") as f:
             json.dump(self.music_player, f)
 
-    def load_all_position(self):
+    def load_all_positions(self):
+        """Load all rectangle and music player positions."""
         try:
             with open("rectangles.json", "r") as f:
                 self.rectangles = json.load(f)
@@ -524,7 +613,8 @@ class MainApp(App):
         main_screen = self.sm.get_screen("main")
         layout = FloatLayout()
         main_screen.add_widget(layout)
-    
+
+        # Load saved rectangles
         for rect_id, pos in self.rectangles.items():
             new_rectangle = DraggableRectangle(note_id=rect_id)
             new_rectangle.size_hint = (None, None)
@@ -533,29 +623,33 @@ class MainApp(App):
             height = pos.get("height", 320)
             new_rectangle.size = (width, height)
             new_rectangle.pos = (pos["x"], pos["y"])
-            new_rectangle.bind(pos=lambda instance,
-                value: self.update_rectangle_pos(rect_id, instance.pos))
+            new_rectangle.bind(
+                pos=lambda instance, value, rid=rect_id: self.update_rectangle_pos(rid, instance.pos)
+            )
             layout.add_widget(new_rectangle)
 
         # Load persistent music player
-        pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # default position
+        pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # Default position
         music_player = DraggableMusicPlayer()
         music_player.size_hint = (None, None)
         music_player.size = (320, 250)
         music_player.pos = (pos["x"], pos["y"])
-        music_player.bind(pos=lambda instance,
-                           value: self.update_musicplayer_pos(instance.pos))
+        music_player.bind(
+            pos=lambda instance, value: self.update_musicplayer_pos(instance.pos)
+        )
         layout.add_widget(music_player)
-        self.music_player_widget = music_player  # store a reference if needed
+        self.music_player_widget = music_player  # Store a reference if needed
 
     def switch_to_main_screen(self):
         """Switch to the main screen."""
         self.sm.current = "main"
 
     def switch_to_secret(self):
+        """Switch to the secret screen (not that there is one)."""
         self.sm.current = "secret"
 
     def add_new_rectangle(self):
+        """Add a new draggable rectangle to the main screen."""
         main_screen = self.sm.get_screen("main")
         layout = main_screen.children[0]
 
@@ -566,8 +660,9 @@ class MainApp(App):
         new_rectangle.pos = (100, 100)
 
         self.rectangles[rect_id] = {"x": 100, "y": 100}
-        new_rectangle.bind(pos=lambda instance,
-                        value: self.update_rectangle_pos(rect_id, instance.pos))
+        new_rectangle.bind(
+            pos=lambda instance, value, rid=rect_id: self.update_rectangle_pos(rid, instance.pos)
+        )
         layout.add_widget(new_rectangle)
         self.save_all_positions()
 
