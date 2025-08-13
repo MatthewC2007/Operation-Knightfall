@@ -123,7 +123,7 @@ kv = """
                 size_hint: None, None
                 size: 40, 40
                 on_release: root.change_note_color(self.background_color)
-<Draggablemusicplayer@DragBehavior+FloatLayout>:
+<DraggableMusicPlayer@DragBehavior+FloatLayout>:
     size_hint: None, None
     size: 320, 360
     drag_timeout: 100000000
@@ -172,7 +172,7 @@ kv = """
                 size_hint_y: 0.08
                 on_release: root.play_prev()
             Button:
-                id:play pause_button
+                id: play_pause_button
                 text: "Play"
                 size_hint_y: 0.08
                 on_press: root.toggle_music(self)
@@ -318,7 +318,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             DraggableRectangle.dragging_widget = None
             self.clamp_to_window()
             app = App.get_running_app()
-            app.rectangles[self.note_id] = {
+            app.notes_positions[self.note_id] = {
                 "x": self.x,
                 "y": self.y,
                 "width": self.width,
@@ -376,8 +376,8 @@ class DraggableRectangle(DragBehavior, FloatLayout):
 
         # Inform the main app to remove from position tracking
         app = App.get_running_app()
-        if self.note_id in app.rectangles:
-            del app.rectangles[self.note_id]
+        if self.note_id in app.notes_positions:
+            del app.notes_positions[self.note_id]
             app.save_all_positions()
 
         # Remove the widget from the screen
@@ -578,7 +578,7 @@ class MainApp(App):
     """Main application class for the note-taking and music player app."""
     def build(self):
         """Build the app."""
-        self.rectangles = {}
+        self.notes_positions = {}
         self.music_player = {}  # for position saving
         self.music_player_widget = None  # optional reference
         self.sm = ScreenManager()
@@ -590,19 +590,19 @@ class MainApp(App):
         
     def save_all_positions(self):
         """Save all rectangle and music player positions."""
-        with open("rectangles.json", "w") as f:
-            json.dump(self.rectangles, f)
+        with open("notes_positions.json", "w") as f:
+            json.dump(self.notes_positions, f)
 
         with open("music.json", "w") as f:
             json.dump(self.music_player, f)
 
     def load_all_positions(self):
-        """Load all rectangle and music player positions."""
+        """Load all note and music player positions."""
         try:
-            with open("rectangles.json", "r") as f:
-                self.rectangles = json.load(f)
+            with open("notes_positions.json", "r") as f:
+                self.notes_positions = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            self.rectangles = {}
+            self.notes_positions = {}
 
         try:
             with open("music.json", "r") as f:
@@ -615,7 +615,7 @@ class MainApp(App):
         main_screen.add_widget(layout)
 
         # Load saved rectangles
-        for rect_id, pos in self.rectangles.items():
+        for rect_id, pos in self.notes_positions.items():
             new_rectangle = DraggableRectangle(note_id=rect_id)
             new_rectangle.size_hint = (None, None)
             # Use saved size if available, else default
@@ -659,7 +659,7 @@ class MainApp(App):
         new_rectangle.size = (250, 300)
         new_rectangle.pos = (100, 100)
 
-        self.rectangles[rect_id] = {"x": 100, "y": 100}
+        self.notes_positions[rect_id] = {"x": 100, "y": 100}
         new_rectangle.bind(
             pos=lambda instance, value, rid=rect_id: self.update_rectangle_pos(rid, instance.pos)
         )
@@ -668,7 +668,7 @@ class MainApp(App):
 
     def update_rectangle_pos(self, rect_id, position):
         """Update the position of a rectangle in the dictionary and save."""
-        self.rectangles[rect_id] = {"x": position[0], "y": position[1]}
+        self.notes_positions[rect_id] = {"x": position[0], "y": position[1]}
         self.save_all_positions()
 
     def update_musicplayer_pos(self, pos):
