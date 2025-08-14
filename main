@@ -15,6 +15,8 @@ Future ideas (optional):
 - Search / tag notes.
 - Export / import notes.
 - Dark / light theme toggle.
+- Schedule reminders for notes.
+- Expandable notes (resize).
 """
 
 import json
@@ -186,7 +188,7 @@ kv = """
             text: "Hey there, note-taker!"
             font_size: self.size[1] * 0.6
             size_hint: None, None
-            size: 100, 100
+            size: 600, 100
             pos_hint: {"center_x": 0.5, "center_y": 0.6}
             background_normal: ''
             background_color: 0, 0, 0, 1
@@ -240,7 +242,7 @@ kv = """
             font_size: self.size[1] * 0.5
             size_hint: 0.05, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
-            on_release: app.switch_to_main_screen()
+            on_release: app.switch_to_welcome_screen()
  """
 Builder.load_string(kv)
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
@@ -296,6 +298,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
             self.pos = (new_x, new_y)
 
     def on_touch_down(self, touch):
+        """Handle touch down events to start dragging."""
         if self.collide_point(*touch.pos):
             for child in self.children:
                 if child.collide_point(*touch.pos):
@@ -308,12 +311,14 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         return super().on_touch_down(touch)
 
     def on_touch_move(self, touch):
+        """Handle touch move events to drag the note."""
         result = super().on_touch_move(touch)
         if DraggableRectangle.dragging_widget is self:
             self.clamp_to_window()
         return result
 
     def on_touch_up(self, touch):
+        """Handle touch up events to stop dragging."""
         if DraggableRectangle.dragging_widget is self:
             DraggableRectangle.dragging_widget = None
             self.clamp_to_window()
@@ -425,6 +430,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         Window.bind(size=self._on_window_resize)
 
     def _on_window_resize(self, *args):
+        """Handle window resize events to keep the player within bounds."""
         self.clamp_to_window()
 
     def clamp_to_window(self):
@@ -436,6 +442,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
             self.pos = (new_x, new_y)
 
     def on_touch_down(self, touch):
+        """Handle touch down events to start dragging the player."""
         if self.collide_point(*touch.pos):
             for child in self.children:
                 if child.collide_point(*touch.pos):
@@ -448,12 +455,14 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         return super().on_touch_down(touch)
 
     def on_touch_move(self, touch):
+        """Handle touch move events to drag the player."""
         result = super().on_touch_move(touch)
         if DraggableMusicPlayer.dragging_widget is self:
             self.clamp_to_window()
         return result
 
     def on_touch_up(self, touch):
+        """Handle touch up events to stop dragging the player."""
         if DraggableMusicPlayer.dragging_widget is self:
             DraggableMusicPlayer.dragging_widget = None
             self.clamp_to_window()
@@ -644,8 +653,12 @@ class MainApp(App):
         """Switch to the main screen."""
         self.sm.current = "main"
 
+    def switch_to_welcome_screen(self):
+        """Switch to the welcome screen."""
+        self.sm.current = "welcome"
+
     def switch_to_secret(self):
-        """Switch to the secret screen (not that there is one)."""
+        """Switch to The screen."""
         self.sm.current = "secret"
 
     def add_new_rectangle(self):
