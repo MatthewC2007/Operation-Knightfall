@@ -1,7 +1,7 @@
 """Sticky note + music player (Kivy).
 
 A lightweight, insecure (do not store sensitive data) desktop scratchboard:
-- Create, drag, recolor, save, and delete sticky notes (each persisted as JSON).
+- Create, drag, recolour, save, and delete sticky notes.
 - Drag a simple music player that shuffles royalty‑free tracks from the local Music/ folder.
 - Remembers widget positions between runs.
 
@@ -17,6 +17,10 @@ Future ideas (optional):
 - Dark / light theme toggle.
 - Schedule reminders for notes.
 - Expandable notes (resize).
+
+Created by Matthew Carter
+
+Last updated: 15/08/2025
 """
 
 import json
@@ -42,10 +46,10 @@ from kivy.uix.progressbar import ProgressBar
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DEFAULT_NOTE_COLOR = [0.996, 1.0, 0.408, 1]
+DEFAULT_NOTE_COLOUR = [0.996, 1.0, 0.408, 1]
 
 kv = """
-<DraggableRectangle@DragBehavior+FloatLayout>:
+<DraggableNote@DragBehavior+FloatLayout>:
     size_hint: None, None
     size: 250, 320
     drag_timeout: 100000000
@@ -60,7 +64,7 @@ kv = """
             size: self.size
     canvas:
         Color:
-            rgba: root.note_color
+            rgba: root.note_colour
         Rectangle:
             pos: self.pos
             size: self.size
@@ -100,31 +104,31 @@ kv = """
                 background_color: 0.996, 1.0, 0.408, 1
                 size_hint: None, None
                 size: 40, 40
-                on_release: root.change_note_color(self.background_color)
+                on_release: root.change_note_colour(self.background_color)
             Button:
                 background_normal: ''
                 background_color: 1.0, 0.757, 0.29, 1
                 size_hint: None, None
                 size: 40, 40
-                on_release: root.change_note_color(self.background_color)
+                on_release: root.change_note_colour(self.background_color)
             Button:
                 background_normal: ''
                 background_color: 1.0, 0.443, 0.808, 1
                 size_hint: None, None
                 size: 40, 40
-                on_release: root.change_note_color(self.background_color)
+                on_release: root.change_note_colour(self.background_color)
             Button:
                 background_normal: ''
                 background_color:  0.729, 0.247, 1.0, 1
                 size_hint: None, None
                 size: 40, 40
-                on_release: root.change_note_color(self.background_color)
+                on_release: root.change_note_colour(self.background_color)
             Button:
                 background_normal: ''
                 background_color:  0.463, 0.753, 0.839, 1
                 size_hint: None, None
                 size: 40, 40
-                on_release: root.change_note_color(self.background_color)
+                on_release: root.change_note_colour(self.background_color)
 <DraggableMusicPlayer@DragBehavior+FloatLayout>:
     size_hint: None, None
     size: 320, 360
@@ -228,7 +232,7 @@ kv = """
             font_size: self.size[1] * 0.5
             size_hint: 0.13, 0.05
             pos_hint: {"x": 0.02, "y": 0.05}
-            on_release: app.add_new_rectangle()
+            on_release: app.add_new_note()
                
 <Secret>:
     FloatLayout:
@@ -267,7 +271,7 @@ class Settings(Screen):
 class Secret(Screen):
     pass
 
-class DraggableRectangle(DragBehavior, FloatLayout):
+class DraggableNote(DragBehavior, FloatLayout):
     """
     A draggable note widget. Allows users to move, edit, and colour notes.
     Each note has a unique ID and saves its position, size, text, and colour.
@@ -275,9 +279,10 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     dragging_widget = None  # Tracks which note is currently being dragged
     text_input_ref = ObjectProperty(None)
     note_id = StringProperty("note_temp")
-    note_color = ListProperty(DEFAULT_NOTE_COLOR)
+    note_colour = ListProperty(DEFAULT_NOTE_COLOUR)
 
     def __init__(self, note_id="note_temp", **kwargs):
+        """Initialize the note with a unique ID and set up event handlers."""
         super().__init__(**kwargs)
         self.note_id = note_id
         self.size_hint = (None, None)
@@ -287,6 +292,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         Window.bind(size=self._on_window_resize)
 
     def _on_window_resize(self, *args):
+        """Handle window resize events to keep the note within bounds."""
         self.clamp_to_window()
 
     def clamp_to_window(self):
@@ -302,7 +308,8 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         if self.collide_point(*touch.pos):
             for child in self.children:
                 if child.collide_point(*touch.pos):
-                    DraggableRectangle.dragging_widget = self
+                    DraggableNote.dragging_widget = self
+                    # If the note is being dragged, ensure it stays on top of other widgets
                     if self.parent:
                         parent = self.parent
                         parent.remove_widget(self)
@@ -313,16 +320,17 @@ class DraggableRectangle(DragBehavior, FloatLayout):
     def on_touch_move(self, touch):
         """Handle touch move events to drag the note."""
         result = super().on_touch_move(touch)
-        if DraggableRectangle.dragging_widget is self:
+        if DraggableNote.dragging_widget is self:
             self.clamp_to_window()
         return result
 
     def on_touch_up(self, touch):
         """Handle touch up events to stop dragging."""
-        if DraggableRectangle.dragging_widget is self:
-            DraggableRectangle.dragging_widget = None
+        if DraggableNote.dragging_widget is self:
+            DraggableNote.dragging_widget = None
             self.clamp_to_window()
             app = App.get_running_app()
+            # Save the position and size of the note (separate per note ID JSON)
             app.notes_positions[self.note_id] = {
                 "x": self.x,
                 "y": self.y,
@@ -334,7 +342,7 @@ class DraggableRectangle(DragBehavior, FloatLayout):
 
     def save_note(self):
         """
-        Save the note text and color to a JSON file.
+        Save the note text and colour to a JSON file.
         """
         note_path = f'Notes/note_{self.note_id}.json'
         data = {}
@@ -345,16 +353,16 @@ class DraggableRectangle(DragBehavior, FloatLayout):
                     data = json.load(f)
                 except Exception:
                     data = {}
-        # Update both note and color
+        # Update both note and colour
         if self.text_input_ref:
             data["note"] = self.text_input_ref.text
-        data["color"] = self.note_color
+        data["color"] = self.note_colour
         with open(note_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
 
     def load_note(self, dt=None):
         """
-        Load the note text and color from a JSON file.
+        Load the note text and colour from a JSON file.
         If the file does not exist, it sets default values.
         """
         note_path = f'Notes/note_{self.note_id}.json'
@@ -363,16 +371,16 @@ class DraggableRectangle(DragBehavior, FloatLayout):
                 data = json.load(f)
                 if self.text_input_ref:
                     self.text_input_ref.text = data.get("note", "")
-                self.note_color = data.get("color", DEFAULT_NOTE_COLOR)
+                self.note_colour = data.get("color", DEFAULT_NOTE_COLOUR)
         except FileNotFoundError:
             if self.text_input_ref:
                 self.text_input_ref.text = ""
-            self.note_color = DEFAULT_NOTE_COLOR.copy()
+            self.note_colour = DEFAULT_NOTE_COLOUR.copy()
 
     def delete_note(self):
         """
         Delete the note by removing its JSON file and removes widget from screen.
-        Also updates the app's rectangle tracking to remove this note.
+        Also updates the app's bote tracking to remove this note.
         """
         try:
             os.remove(f'Notes/note_{self.note_id}.json')
@@ -389,13 +397,13 @@ class DraggableRectangle(DragBehavior, FloatLayout):
         if self.parent:
             self.parent.remove_widget(self)
 
-    def change_note_color(self, color):
-        """Change the color of the note."""
-        self.note_color = list(color)  # Ensure it's a list, not a kivy object
-        self.save_note_color(color)
+    def change_note_colour(self, color):
+        """Change the colour of the note."""
+        self.note_colour = list(color)  # Ensure it's a list, not a kivy object
+        self.save_note_colour(color)
 
-    def save_note_color(self, color):
-        """Save the note color to a JSON file."""
+    def save_note_colour(self, color):
+        """Save the note colour to a JSON file."""
         note_path = f'Notes/note_{self.note_id}.json'
         # Load existing note data if present
         data = {}
@@ -423,6 +431,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
     paused_position = 0
 
     def __init__(self, **kwargs):
+        """Initialize the music player and bind to window resize events."""
         super().__init__(**kwargs)
         self.progress_event = None
         self._replacing_track = False
@@ -491,7 +500,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
         # If an existing sound is playing, stop it without triggering auto-next
         if self.sound:
             self._replacing_track = True
-            self.is_playing = False  # prevent auto-next on old sound stop
+            self.is_playing = False  # Prevent auto-next on old sound stop
             try:
                 self.sound.unbind(on_stop=self._on_sound_stop)
             except Exception:
@@ -508,7 +517,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
             self.current_song = os.path.basename(song_path)
             logger.info("Playing song: %s", self.current_song)
             self.is_playing = True
-            # smoother progress & quicker end detection
+            # Smoother progress & quicker end detection
             self.progress_event = Clock.schedule_interval(self.update_progress, 0.1)
         else:
             self.current_song = "Error loading song"
@@ -528,7 +537,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
             button.text = 'Pause'
         elif self.sound:
             if self.is_playing:
-                # mark paused before stopping so on_stop won't advance
+                # Mark paused before stopping so on_stop won't advance
                 self.is_playing = False
                 try:
                     self.sound.unbind(on_stop=self._on_sound_stop)
@@ -578,7 +587,7 @@ class DraggableMusicPlayer(DragBehavior, FloatLayout):
 
     def _on_sound_stop(self, *args):
         """Handle the sound stop event."""
-        if not self.is_playing:  # paused or intentionally stopped
+        if not self.is_playing:  # Paused or intentionally stopped
             return
         # Natural end -> next track
         Clock.schedule_once(lambda dt: self.play_next(), 0)
@@ -587,9 +596,11 @@ class MainApp(App):
     """Main application class for the note-taking and music player app."""
     def build(self):
         """Build the app."""
+        # Dictionary to track each note's positions and sizes
+        # Text and colour will be saved in individual note JSON files
         self.notes_positions = {}
-        self.music_player = {}  # for position saving
-        self.music_player_widget = None  # optional reference
+        self.music_player = {}  # For position saving
+        self.music_player_widget = None  # Reference to the music player widget
         self.sm = ScreenManager()
         self.sm.add_widget(WelcomeScreen(name="welcome"))
         self.sm.add_widget(MainScreen(name="main"))
@@ -598,7 +609,7 @@ class MainApp(App):
         return self.sm
         
     def save_all_positions(self):
-        """Save all rectangle and music player positions."""
+        """Save all note and music player positions."""
         with open("notes_positions.json", "w") as f:
             json.dump(self.notes_positions, f)
 
@@ -623,19 +634,19 @@ class MainApp(App):
         layout = FloatLayout()
         main_screen.add_widget(layout)
 
-        # Load saved rectangles
-        for rect_id, pos in self.notes_positions.items():
-            new_rectangle = DraggableRectangle(note_id=rect_id)
-            new_rectangle.size_hint = (None, None)
+        # Load saved notes from stored files
+        for note_id, pos in self.notes_positions.items():
+            new_note = DraggableNote(note_id=note_id)
+            new_note.size_hint = (None, None)
             # Use saved size if available, else default
             width = pos.get("width", 250)
             height = pos.get("height", 320)
-            new_rectangle.size = (width, height)
-            new_rectangle.pos = (pos["x"], pos["y"])
-            new_rectangle.bind(
-                pos=lambda instance, value, rid=rect_id: self.update_rectangle_pos(rid, instance.pos)
+            new_note.size = (width, height)
+            new_note.pos = (pos["x"], pos["y"])
+            new_note.bind(pos=lambda instance, value, 
+                        rid=note_id: self.update_note_pos(rid, instance.pos)
             )
-            layout.add_widget(new_rectangle)
+            layout.add_widget(new_note)
 
         # Load persistent music player
         pos = self.music_player.get("music_player", {"x": 1440, "y": 20})  # Default position
@@ -661,27 +672,27 @@ class MainApp(App):
         """Switch to The screen."""
         self.sm.current = "secret"
 
-    def add_new_rectangle(self):
-        """Add a new draggable rectangle to the main screen."""
+    def add_new_note(self):
+        """Add a new draggable note to the main screen."""
         main_screen = self.sm.get_screen("main")
         layout = main_screen.children[0]
+        # Generate a unique ID for the new note
+        note_id = str(uuid.uuid4())
+        new_note = DraggableNote(note_id=note_id)
+        new_note.size_hint = (None, None)
+        new_note.size = (250, 300)
+        new_note.pos = (40, 120)
 
-        rect_id = str(uuid.uuid4())
-        new_rectangle = DraggableRectangle(note_id=rect_id)
-        new_rectangle.size_hint = (None, None)
-        new_rectangle.size = (250, 300)
-        new_rectangle.pos = (100, 100)
-
-        self.notes_positions[rect_id] = {"x": 100, "y": 100}
-        new_rectangle.bind(
-            pos=lambda instance, value, rid=rect_id: self.update_rectangle_pos(rid, instance.pos)
+        self.notes_positions[note_id] = {"x": 100, "y": 100}
+        new_note.bind(
+            pos=lambda instance, value, rid=note_id: self.update_note_pos(rid, instance.pos)
         )
-        layout.add_widget(new_rectangle)
+        layout.add_widget(new_note)
         self.save_all_positions()
 
-    def update_rectangle_pos(self, rect_id, position):
-        """Update the position of a rectangle in the dictionary and save."""
-        self.notes_positions[rect_id] = {"x": position[0], "y": position[1]}
+    def update_note_pos(self, note_id, position):
+        """Update the position of a note in the dictionary and save."""
+        self.notes_positions[note_id] = {"x": position[0], "y": position[1]}
         self.save_all_positions()
 
     def update_musicplayer_pos(self, pos):
